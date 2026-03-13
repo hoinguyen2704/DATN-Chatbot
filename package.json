@@ -1,12 +1,24 @@
 {
-  "name": "chatbot",
+  "name": "hozitech-chatbot",
   "version": "1.0.0",
-  "description": "\"Chatbot cho website bán đồ dùng công nghệ\"",
+  "description": "Chatbot AI cho website Hozitech - cửa hàng công nghệ",
   "license": "ISC",
   "author": "hozinium",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "nodemon index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "openai": "^4.47.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
