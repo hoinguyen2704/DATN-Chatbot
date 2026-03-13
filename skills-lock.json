@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "alicloud-ai-chatbot": {
+      "source": "cinience/alicloud-skills",
+      "sourceType": "github",
+      "computedHash": "7b39073e124e38b26a160eda4454408a791d632ca1c7f1507a196fa8595a54c2"
+    }
+  }
+}
