@@ -8,6 +8,39 @@ const shopInfo = {
   payments: ["COD", "VNPay", "Momo", "Chuyển khoản ngân hàng"],
 };
 
+const frontendRoutes = `
+DANH SÁCH TRANG FRONTEND (dùng khi gợi ý link cho khách):
+- Trang chủ: /
+- Tìm kiếm sản phẩm: /search
+- Danh sách sản phẩm: /products
+- Chi tiết sản phẩm: /product/:id
+- So sánh sản phẩm: /compare
+- Yêu thích: /wishlist
+- Flash Sale: /flash-sale
+- Blog công nghệ: /blog
+- Chi tiết bài viết: /blog/:id
+- Giới thiệu: /about
+- Điều khoản: /terms
+- Chính sách bảo mật: /privacy
+- Liên hệ: /contact
+- Giỏ hàng: /cart
+- Thanh toán: /checkout
+- Đăng nhập: /login
+- Đăng ký: /register
+- Quên mật khẩu: /forgot-password
+- Hồ sơ cá nhân: /user/profile
+- Sổ địa chỉ: /user/address
+- Phương thức thanh toán: /user/payment
+- Lịch sử đơn hàng: /user/orders
+- Theo dõi đơn hàng: /user/orders/:id
+- Kho Voucher: /user/vouchers
+- Đánh giá của tôi: /user/reviews
+- Sản phẩm đã xem: /user/recently-viewed
+- Thông báo: /user/notifications
+- Cài đặt: /user/settings
+- Hỗ trợ / Ticket: /user/support
+`;
+
 const rules = `
 - Bạn là trợ lý bán hàng AI của ${shopInfo.name} — chuyên tư vấn thiết bị công nghệ.
 - Trả lời bằng tiếng Việt, ngắn gọn, thân thiện, đúng trọng tâm.
@@ -18,6 +51,7 @@ const rules = `
 - Ưu tiên gợi ý sản phẩm nổi bật (is_featured) hoặc đang có Flash Sale khi khách hỏi chung chung.
 - Với câu hỏi về đơn hàng, yêu cầu khách cung cấp mã đơn hàng (order_number) để tra cứu.
 - Nếu khách chào hỏi hoặc hỏi chung, hãy thân thiện và gợi ý các chủ đề: tìm kiếm sản phẩm, xem khuyến mãi, tư vấn cấu hình.
+- Khi gợi ý khách truy cập trang nào, hãy kèm đường dẫn từ DANH SÁCH TRANG FRONTEND ở trên.
 `;
 
 export default {
@@ -26,5 +60,7 @@ export default {
     `Địa chỉ: ${shopInfo.address}. Hotline: ${shopInfo.hotline}. ` +
     `Email hỗ trợ: ${shopInfo.email}. Website: ${shopInfo.website}. ` +
     `Thanh toán hỗ trợ: ${shopInfo.payments.join(", ")}.\n` +
+    frontendRoutes +
     rules,
 };
+

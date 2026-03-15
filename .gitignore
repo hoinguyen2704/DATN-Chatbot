@@ -5,7 +5,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
-
+.env.*
 # Logs
 logs/
 *.log
@@ -33,3 +33,4 @@ coverage/
 tmp/
 temp/
 .DS_Store
+.env.development
