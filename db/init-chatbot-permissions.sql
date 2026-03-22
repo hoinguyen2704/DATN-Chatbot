@@ -13,7 +13,7 @@ END
 $$;
 
 -- 2. Cấp quyền kết nối vào database
-GRANT CONNECT ON DATABASE hozitechdb TO chatbot_read_only;
+GRANT CONNECT ON DATABASE hozitech_db TO chatbot_read_only;
 
 -- 3. Cấp quyền đọc schema public
 GRANT USAGE ON SCHEMA public TO chatbot_read_only;
