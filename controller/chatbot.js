@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import promptSystem from "../prompt/prompt-system.js";
 import { contractToPrompt } from "../prompt/contract-to-prompt.js";
 import { fewShotExamples } from "../prompt/few-shot.js";
@@ -8,29 +8,38 @@ import { runReadOnly } from "../db/executor.js";
 import { CONTRACT } from "../db/contract.js";
 import { getRecommendations } from "../prompt/recommendation.js";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
-/* ─── Chuyển đổi FE history → OpenAI messages ─── */
-function formatHistory(history) {
+/* ─── Helper: chuyển FE history → Gemini history format ─── */
+function formatGeminiHistory(history) {
   return history.map((m) => ({
-    role: m.role === "bot" ? "assistant" : "user",
-    content: m.content,
+    role: m.role === "bot" ? "model" : "user",
+    parts: [{ text: m.content }],
   }));
 }
 
-/* ─── Bước 1: Gọi OpenAI tạo kế hoạch truy vấn DB ─── */
+/* ─── Helper: gọi Gemini đơn giản ─── */
+async function callGemini(systemInstruction, history, userMessage, jsonMode = false) {
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction,
+    generationConfig: jsonMode
+      ? { responseMimeType: "application/json" }
+      : undefined,
+  });
+
+  const chat = model.startChat({ history: formatGeminiHistory(history) });
+  const result = await chat.sendMessage(userMessage);
+  return result.response.text();
+}
+
+/* ─── Bước 1: Gọi Gemini tạo kế hoạch truy vấn DB ─── */
 async function generatePlan(question, history) {
   const schemaText = contractToPrompt();
   const allowed = Object.keys(CONTRACT.resources).join(", ");
 
-  const resp = await openai.chat.completions.create({
-    model: MODEL,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `Bạn là trợ lý lập kế hoạch truy vấn DB của cửa hàng Hozitech.
+  const systemInstruction = `Bạn là trợ lý lập kế hoạch truy vấn DB của cửa hàng Hozitech.
 - Luôn cố gắng lập kế hoạch truy vấn vào dữ liệu cửa hàng trước.
 - Trả về JSON: {"resource":"<${allowed}>","joins":[],"select":[],"where":[],"sort":[],"limit":number}
 - CHỈ được JOIN theo "relations" trong CONTRACT.
@@ -45,22 +54,17 @@ async function generatePlan(question, history) {
 - Ý định mua/bán/sản phẩm/giá → coi là truy vấn Product (không hỏi lại).
 - Nếu câu hỏi là YÊU CẦU GỢI Ý / TƯ VẤN CHUNG (VD: "gợi ý cho mình", "tư vấn giùm", "có gì hay"), trả {"mode":"recommend","intent":"general"}.
 - Nếu thực sự KHÔNG phù hợp truy vấn DB (chit-chat thuần), trả {"message":"<gợi ý lịch sự>"}.
-- Không sinh SQL. Không bịa tên bảng/field.`,
-      },
-      { role: "system", content: schemaText },
-      { role: "system", content: fewShotExamples },
+- Không sinh SQL. Không bịa tên bảng/field.
 
-      // Lịch sử chat
-      ...formatHistory(history),
+${schemaText}
 
-      // Câu hỏi hiện tại
-      { role: "user", content: question },
-    ],
-  });
+${fewShotExamples}`;
+
+  const text = await callGemini(systemInstruction, history, question, true);
 
   let obj = {};
   try {
-    obj = JSON.parse(resp.choices[0].message.content || "{}");
+    obj = JSON.parse(text || "{}");
   } catch {}
 
   // Recommend mode
@@ -102,26 +106,18 @@ export const chatbot = async (req, res) => {
         flashSales: recommendations.flashSales,
       };
 
-      const summary = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-          {
-            role: "system",
-            content: `${promptSystem.system}
+      const sysPrompt = `${promptSystem.system}
 - Bạn đang ở CHẾ ĐỘ GỢI Ý SẢN PHẨM.
 - Dùng data được cung cấp để gợi ý sản phẩm phù hợp cho khách.
 - Chia thành các nhóm: Sản phẩm nổi bật, Được đánh giá cao, Flash Sale (nếu có).
 - Trình bày dạng danh sách ngắn gọn, kèm giá bán.
 - Nếu nhóm nào không có data, bỏ qua không nhắc.
-- FORMAT giá: dùng dấu chấm phân cách hàng nghìn + "đ" (VD: 12.990.000đ).`,
-          },
-          ...formatHistory(history),
-          { role: "user", content: JSON.stringify(payload) },
-        ],
-      });
+- FORMAT giá: dùng dấu chấm phân cách hàng nghìn + "đ" (VD: 12.990.000đ).`;
+
+      const answer = await callGemini(sysPrompt, history, JSON.stringify(payload));
 
       return res.status(200).json({
-        answer: summary.choices[0].message.content,
+        answer,
         mode: "recommend",
         data: recommendations,
       });
@@ -129,19 +125,13 @@ export const chatbot = async (req, res) => {
 
     /* ═══════════ MODE: NON_DB (Chit-chat) ═══════════ */
     if (mode === "non_db") {
-      const ans = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-          { role: "system", content: promptSystem.system },
-          ...formatHistory(history),
-          { role: "user", content: message || userPrompt },
-        ],
-      });
+      const answer = await callGemini(
+        promptSystem.system,
+        history,
+        message || userPrompt,
+      );
 
-      return res.status(200).json({
-        answer: ans.choices[0].message.content,
-        mode,
-      });
+      return res.status(200).json({ answer, mode });
     }
 
     /* ═══════════ MODE: DB (Truy vấn dữ liệu) ═══════════ */
@@ -161,23 +151,15 @@ export const chatbot = async (req, res) => {
       rows: result.rows,
     };
 
-    const summary = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `${promptSystem.system}
+    const sysPrompt = `${promptSystem.system}
 - Chỉ dùng DATA được cung cấp; nếu không có data, báo "Chưa có dữ liệu phù hợp" và gợi ý liên hệ.
 - FORMAT giá: dùng dấu chấm phân cách hàng nghìn + "đ" (VD: 12.990.000đ).
-- Trình bày danh sách sản phẩm dạng gọn, dễ đọc.`,
-        },
-        ...formatHistory(history),
-        { role: "user", content: JSON.stringify(payload) },
-      ],
-    });
+- Trình bày danh sách sản phẩm dạng gọn, dễ đọc.`;
+
+    const answer = await callGemini(sysPrompt, history, JSON.stringify(payload));
 
     return res.status(200).json({
-      answer: summary.choices[0].message.content,
+      answer,
       mode,
       plan: valid,
       sql,
