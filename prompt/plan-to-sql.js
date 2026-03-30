@@ -51,8 +51,15 @@ export function planToSQL(plan) {
     return `"${alias || baseAlias}"."${field}"`;
   };
 
+  const selectAlias = (qualified) => {
+    const { res, field } = splitField(qualified);
+    return res ? `${res}_${field}` : field;
+  };
+
   // SELECT
-  const selectCols = plan.select.map(qcol).join(", ");
+  const selectCols = plan.select
+    .map((s) => `${qcol(s)} AS "${selectAlias(s)}"`)
+    .join(", ");
 
   // WHERE
   const params = [];

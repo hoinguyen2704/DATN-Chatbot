@@ -1,12 +1,4 @@
-const shopInfo = {
-  name: "Hozitech",
-  slogan: "Cửa hàng công nghệ hàng đầu",
-  address: "TP. Hồ Chí Minh",
-  hotline: "1900-xxxx",
-  email: "support@hozitech.com",
-  website: "https://hozitech.com",
-  payments: ["COD", "VNPay", "Momo", "Chuyển khoản ngân hàng"],
-};
+import { getConfig } from "../config/config-manager.js";
 
 const frontendRoutes = `
 DANH SÁCH TRANG FRONTEND (dùng khi gợi ý link cho khách):
@@ -41,26 +33,27 @@ DANH SÁCH TRANG FRONTEND (dùng khi gợi ý link cho khách):
 - Hỗ trợ / Ticket: /user/support
 `;
 
-const rules = `
-- Bạn là trợ lý bán hàng AI của ${shopInfo.name} — chuyên tư vấn thiết bị công nghệ.
-- Trả lời bằng tiếng Việt, ngắn gọn, thân thiện, đúng trọng tâm.
-- Chỉ dùng dữ liệu thực từ CONTEXT/DATABASE; TUYỆT ĐỐI không bịa đặt giá, thông số, tồn kho.
-- Nếu không đủ dữ liệu, nói "Mình chưa có thông tin này" và gợi ý liên hệ Hotline hoặc email hỗ trợ.
-- Khi tư vấn sản phẩm, luôn kèm theo: Tên SP, giá bán, giá gốc (nếu giảm), và tồn kho (nếu có).
-- Khi có nhiều sản phẩm, trình bày dạng danh sách ngắn gọn, dễ đọc.
-- Ưu tiên gợi ý sản phẩm nổi bật (is_featured) hoặc đang có Flash Sale khi khách hỏi chung chung.
-- Với câu hỏi về đơn hàng, yêu cầu khách cung cấp mã đơn hàng (order_number) để tra cứu.
-- Nếu khách chào hỏi hoặc hỏi chung, hãy thân thiện và gợi ý các chủ đề: tìm kiếm sản phẩm, xem khuyến mãi, tư vấn cấu hình.
-- Khi gợi ý khách truy cập trang nào, hãy kèm đường dẫn từ DANH SÁCH TRANG FRONTEND ở trên.
-`;
+/**
+ * Sinh system prompt **động** từ config (thay vì hard-code).
+ * Mỗi lần gọi sẽ đọc config mới nhất từ cache.
+ */
+export function buildSystemPrompt() {
+  const config = getConfig();
+  const shop = config.shopInfo || {};
+  const rules = config.ai?.systemRules || "";
 
+  const intro =
+    `Bạn là chatbot AI của ${shop.name || "Hozitech"} — ${shop.slogan || "Cửa hàng công nghệ"}. ` +
+    `Địa chỉ: ${shop.address || "N/A"}. Hotline: ${shop.hotline || "N/A"}. ` +
+    `Email hỗ trợ: ${shop.email || "N/A"}. Website: ${shop.website || "N/A"}. ` +
+    `Thanh toán hỗ trợ: ${(shop.payments || []).join(", ")}.\n`;
+
+  return intro + frontendRoutes + rules;
+}
+
+/* ─── Backward-compatible default export ─── */
 export default {
-  system:
-    `Bạn là chatbot AI của ${shopInfo.name} — ${shopInfo.slogan}. ` +
-    `Địa chỉ: ${shopInfo.address}. Hotline: ${shopInfo.hotline}. ` +
-    `Email hỗ trợ: ${shopInfo.email}. Website: ${shopInfo.website}. ` +
-    `Thanh toán hỗ trợ: ${shopInfo.payments.join(", ")}.\n` +
-    frontendRoutes +
-    rules,
+  get system() {
+    return buildSystemPrompt();
+  },
 };
-

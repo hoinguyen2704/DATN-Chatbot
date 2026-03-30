@@ -21,7 +21,7 @@ export const CONTRACT = {
         brand_id:     { type: "uuid",      description: "Mã thương hiệu" },
         created_at:   { type: "timestamp", description: "Ngày tạo" },
       },
-      defaultSelect: ["id", "name", "origin_price", "status", "is_featured"],
+      defaultSelect: ["id", "name", "description", "origin_price", "status", "is_featured", "specs_json"],
       filterable: true,
       sortable: true,
       relations: {
