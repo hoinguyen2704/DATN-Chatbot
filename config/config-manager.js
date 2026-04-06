@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SETTINGS_PATH = path.join(__dirname, "settings.json");
 const DEFAULTS_PATH = path.join(__dirname, "defaults.json");
 
-/* ─── In-memory cache ─── */
+/*  In-memory cache  */
 let _cache = null;
 let _defaults = null;
 

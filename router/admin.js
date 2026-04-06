@@ -78,7 +78,7 @@ function isAdminPayload(payload) {
   return false;
 }
 
-/* ─── Auth middleware: kiểm tra Bearer JWT (ADMIN) ─── */
+/*  Auth middleware: kiểm tra Bearer JWT (ADMIN)  */
 function adminAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const jwtSecret = process.env.JWT_SECRET_KEY;
@@ -92,7 +92,9 @@ function adminAuth(req, res, next) {
     try {
       const payload = verifyJwt(token, jwtSecret);
       if (!isAdminPayload(payload)) {
-        return res.status(403).json({ error: "Forbidden — Admin role required" });
+        return res
+          .status(403)
+          .json({ error: "Forbidden — Admin role required" });
       }
       return next();
     } catch (e) {
@@ -103,13 +105,13 @@ function adminAuth(req, res, next) {
   return res.status(401).json({ error: "Unauthorized — Missing Bearer token" });
 }
 
-/* ─── Admin routes (protected) ─── */
+/*  Admin routes (protected)  */
 router.get("/config", adminAuth, getAdminConfig);
 router.put("/config", adminAuth, updateAdminConfig);
 router.post("/config/reset", adminAuth, resetAdminConfig);
 router.get("/config/defaults", adminAuth, getAdminDefaults);
 
-/* ─── Widget config (public — no auth) ─── */
+/*  Widget config (public — no auth)  */
 router.get("/widget-config", getWidgetConfig);
 
 export default router;

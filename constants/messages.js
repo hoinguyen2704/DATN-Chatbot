@@ -4,23 +4,24 @@
  */
 
 export const MESSAGES = {
-  /* ── Chatbot disabled ── */
-  DISABLED: "Chatbot hiện đang tạm ngưng hoạt động. Vui lòng liên hệ hotline để được hỗ trợ.",
+  /*  Chatbot disabled  */
+  DISABLED:
+    "Chatbot hiện đang tạm ngưng hoạt động. Vui lòng liên hệ hotline để được hỗ trợ.",
 
-  /* ── Prompt trống ── */
+  /*  Prompt trống  */
   EMPTY_PROMPT: "empty_prompt",
 
-  /* ── Fallback mặc định ── */
+  /*  Fallback mặc định  */
   DEFAULT_HINT: (shopName) =>
     `Bạn muốn tìm hiểu về sản phẩm, khuyến mãi, hay cần tư vấn gì ạ?`,
 
-  /* ── DB mode ── */
+  /*  DB mode  */
   NO_DATA: (query) =>
     `Mình chưa có dữ liệu phù hợp cho "${query}". Bạn thử đổi từ khóa hoặc khoảng giá cụ thể hơn nhé.`,
   RESULT_HEADER: (count, query) =>
     `Mình tìm thấy ${count} kết quả cho "${query}":`,
 
-  /* ── Recommend mode ── */
+  /*  Recommend mode  */
   RECOMMEND_HEADER: "Mình gợi ý cho bạn:",
   RECOMMEND_EMPTY:
     "Hiện tại chưa có dữ liệu gợi ý phù hợp. Bạn có thể hỏi theo danh mục hoặc mức giá cụ thể.",
@@ -29,13 +30,13 @@ export const MESSAGES = {
   SECTION_FLASH_SALE: "Flash Sale đang diễn ra",
   PRODUCT_FALLBACK_NAME: "Sản phẩm",
 
-  /* ── Error messages ── */
+  /*  Error messages  */
   ERR_UNCLEAR:
     "Câu hỏi chưa rõ. Bạn muốn tìm hiểu về sản phẩm, danh mục, khuyến mãi, hay đánh giá ạ?",
   ERR_AI_BUSY:
     "Hệ thống AI đang bận nên phản hồi chậm. Bạn vui lòng thử lại sau ít phút hoặc liên hệ hotline để được hỗ trợ nhanh.",
 
-  /* ── Plan system instruction ── */
+  /* n system instruction  */
   PLAN_SYSTEM: (shopName, schemaText, fewShot, allowed) =>
     `Bạn là trợ lý lập kế hoạch truy vấn DB của cửa hàng ${shopName}.
 - Luôn cố gắng lập kế hoạch truy vấn vào dữ liệu cửa hàng trước.

@@ -11,12 +11,12 @@ import { MESSAGES } from "../constants/messages.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/* ─── Helper: lấy model name từ config (dynamic) ─── */
+/*  Helper: lấy model name từ config (dynamic)  */
 function getModelName(config) {
   return config?.ai?.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
 }
 
-/* ─── Helper: lấy shop name từ config ─── */
+/*  Helper: lấy shop name từ config  */
 function getShopName(config) {
   return config?.shopInfo?.name || "Hozitech";
 }
@@ -34,7 +34,7 @@ function withTimeout(promise, timeoutMs, errorMessage = "GEMINI_TIMEOUT") {
   });
 }
 
-/* ─── Helper: chuyển FE history → Gemini history format ─── */
+/*  Helper: chuyển FE history → Gemini history format */
 function formatGeminiHistory(history) {
   return history.map((m) => ({
     role: m.role === "bot" ? "model" : "user",
@@ -42,23 +42,25 @@ function formatGeminiHistory(history) {
   }));
 }
 
-/* ─── Helper: gọi Gemini với auto-retry + fallback model ─── */
+/*  Helper: gọi Gemini với auto-retry + fallback model  */
 async function callGemini(
   systemInstruction,
   history,
   userMessage,
   jsonMode = false,
-  options = {}
+  options = {},
 ) {
   const temperature = options.temperature ?? 0.7;
   const maxRetries = options.maxRetries ?? 3;
   const modelsToTry =
     Array.isArray(options.modelsToTry) && options.modelsToTry.length > 0
       ? options.modelsToTry
-      : [options.modelName || process.env.GEMINI_MODEL || FALLBACK_MODEL, FALLBACK_MODEL];
+      : [
+          options.modelName || process.env.GEMINI_MODEL || FALLBACK_MODEL,
+          FALLBACK_MODEL,
+        ];
   const timeoutMs =
-    options.timeoutMs ??
-    (Number(process.env.GEMINI_TIMEOUT_MS) || 25000);
+    options.timeoutMs ?? (Number(process.env.GEMINI_TIMEOUT_MS) || 25000);
   let lastError = null;
 
   const genConfig = jsonMode
@@ -70,10 +72,19 @@ async function callGemini(
       try {
         const startedAt = Date.now();
         console.log(`[GEMINI START] model=${modelName} json=${jsonMode}`);
-        const model = genAI.getGenerativeModel({ model: modelName, systemInstruction, generationConfig: genConfig });
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction,
+          generationConfig: genConfig,
+        });
         const chat = model.startChat({ history: formatGeminiHistory(history) });
-        const result = await withTimeout(chat.sendMessage(userMessage), timeoutMs);
-        console.log(`[GEMINI DONE] model=${modelName} ms=${Date.now() - startedAt}`);
+        const result = await withTimeout(
+          chat.sendMessage(userMessage),
+          timeoutMs,
+        );
+        console.log(
+          `[GEMINI DONE] model=${modelName} ms=${Date.now() - startedAt}`,
+        );
         return result.response.text();
       } catch (err) {
         lastError = err;
@@ -84,11 +95,13 @@ async function callGemini(
         if (isRetryable && attempt < maxRetries) {
           const delay = Math.min(attempt * 1000, 3000); // 1s, 2s, 3s
           console.log(
-            `[GEMINI RETRY] ${modelName} attempt ${attempt}/${maxRetries} (${status || err?.message}), wait ${delay}ms...`
+            `[GEMINI RETRY] ${modelName} attempt ${attempt}/${maxRetries} (${status || err?.message}), wait ${delay}ms...`,
           );
           await new Promise((r) => setTimeout(r, delay));
         } else if (isRetryable && modelName !== FALLBACK_MODEL) {
-          console.log(`[GEMINI FALLBACK] ${modelName} unavailable, switching to ${FALLBACK_MODEL}`);
+          console.log(
+            `[GEMINI FALLBACK] ${modelName} unavailable, switching to ${FALLBACK_MODEL}`,
+          );
           break; // break inner loop, try next model
         } else {
           throw err;
@@ -100,14 +113,19 @@ async function callGemini(
   throw lastError || new Error("GEMINI_UNAVAILABLE");
 }
 
-/* ─── Bước 1: Gọi Gemini tạo kế hoạch truy vấn DB ─── */
+/*  Bước 1: Gọi Gemini tạo kế hoạch truy vấn DB  */
 async function generatePlan(question, history, runtime) {
   const schemaText = contractToPrompt();
   const allowed = Object.keys(CONTRACT.resources).join(", ");
   const shopName = getShopName(getConfig());
 
   const cfg = getConfig();
-  const systemInstruction = MESSAGES.PLAN_SYSTEM(shopName, schemaText, fewShotExamples, allowed);
+  const systemInstruction = MESSAGES.PLAN_SYSTEM(
+    shopName,
+    schemaText,
+    fewShotExamples,
+    allowed,
+  );
 
   const text = await callGemini(systemInstruction, history, question, true, {
     timeoutMs: cfg?.ai?.planTimeoutMs || 20000,
@@ -133,9 +151,7 @@ async function generatePlan(question, history, runtime) {
   }
 
   // Non-DB (chit-chat)
-  const hint =
-    obj?.message?.trim() ||
-    MESSAGES.DEFAULT_HINT(shopName);
+  const hint = obj?.message?.trim() || MESSAGES.DEFAULT_HINT(shopName);
   return { mode: "non_db", message: hint };
 }
 
@@ -164,7 +180,9 @@ function pickFirst(obj, keys) {
 }
 
 function formatProductLine(row, idx) {
-  const name = pickFirst(row, ["name", "variant_name", "title"]) || `${MESSAGES.PRODUCT_FALLBACK_NAME} ${idx + 1}`;
+  const name =
+    pickFirst(row, ["name", "variant_name", "title"]) ||
+    `${MESSAGES.PRODUCT_FALLBACK_NAME} ${idx + 1}`;
   const price = pickFirst(row, [
     "MinVariant_min_price",
     "min_price",
@@ -172,17 +190,28 @@ function formatProductLine(row, idx) {
     "price",
     "origin_price",
   ]);
-  const stock = pickFirst(row, ["MinVariant_total_stock", "total_stock", "flash_stock", "stock_quantity"]);
+  const stock = pickFirst(row, [
+    "MinVariant_total_stock",
+    "total_stock",
+    "flash_stock",
+    "stock_quantity",
+  ]);
   const category = pickFirst(row, ["Category_name", "category_name"]);
   const rating = pickFirst(row, ["FeedbackStat_avg_rating", "avg_rating"]);
-  const reviewCount = pickFirst(row, ["FeedbackStat_review_count", "review_count"]);
+  const reviewCount = pickFirst(row, [
+    "FeedbackStat_review_count",
+    "review_count",
+  ]);
 
   const parts = [`${idx + 1}. **${name}**`];
   const formattedPrice = formatCurrency(price);
   if (formattedPrice) parts.push(`- ${formattedPrice}`);
   if (stock !== null) parts.push(`(tồn: ${stock})`);
   if (category) parts.push(`- ${category}`);
-  if (rating !== null) parts.push(`- ⭐ ${rating}${reviewCount !== null ? ` (${reviewCount} đánh giá)` : ""}`);
+  if (rating !== null)
+    parts.push(
+      `- ⭐ ${rating}${reviewCount !== null ? ` (${reviewCount} đánh giá)` : ""}`,
+    );
 
   return parts.join(" ");
 }
@@ -193,7 +222,9 @@ function formatGenericLine(row, idx) {
     .map((k) => {
       const raw = row[k];
       if (raw === null || raw === undefined || raw === "") return null;
-      const maybePrice = /price|amount|total/i.test(k) ? formatCurrency(raw) : null;
+      const maybePrice = /price|amount|total/i.test(k)
+        ? formatCurrency(raw)
+        : null;
       return `${k}: ${maybePrice || raw}`;
     })
     .filter(Boolean)
@@ -201,31 +232,46 @@ function formatGenericLine(row, idx) {
   return `${idx + 1}. ${details || "Không có dữ liệu hiển thị"}`;
 }
 
-/* ─── Strip HTML tags → plain text ─── */
+/*  Strip HTML tags → plain text  */
 function stripHtml(html) {
   if (!html || typeof html !== "string") return "";
   return html
-    .replace(/<[^>]*>/g, "")           // xoá tags
-    .replace(/&nbsp;/gi, " ")          // decode &nbsp;
+    .replace(/<[^>]*>/g, "") // xoá tags
+    .replace(/&nbsp;/gi, " ") // decode &nbsp;
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")              // gộp khoảng trắng
+    .replace(/\s+/g, " ") // gộp khoảng trắng
     .trim();
 }
 
-/* ─── Chi tiết 1 sản phẩm ─── */
+/*  Chi tiết 1 sản phẩm  */
 function formatProductDetail(row) {
-  const name = pickFirst(row, ["name", "variant_name", "title"]) || MESSAGES.PRODUCT_FALLBACK_NAME;
-  const price = pickFirst(row, ["MinVariant_min_price", "min_price", "flash_price", "price", "origin_price"]);
+  const name =
+    pickFirst(row, ["name", "variant_name", "title"]) ||
+    MESSAGES.PRODUCT_FALLBACK_NAME;
+  const price = pickFirst(row, [
+    "MinVariant_min_price",
+    "min_price",
+    "flash_price",
+    "price",
+    "origin_price",
+  ]);
   const originPrice = row.origin_price ?? null;
-  const stock = pickFirst(row, ["MinVariant_total_stock", "total_stock", "stock_quantity"]);
+  const stock = pickFirst(row, [
+    "MinVariant_total_stock",
+    "total_stock",
+    "stock_quantity",
+  ]);
   const category = pickFirst(row, ["Category_name", "category_name"]);
   const brand = pickFirst(row, ["Brand_name", "brand_name"]);
   const rating = pickFirst(row, ["FeedbackStat_avg_rating", "avg_rating"]);
-  const reviewCount = pickFirst(row, ["FeedbackStat_review_count", "review_count"]);
+  const reviewCount = pickFirst(row, [
+    "FeedbackStat_review_count",
+    "review_count",
+  ]);
   const rawDesc = row.description || null;
   const specs = row.specs_json || null;
 
@@ -238,12 +284,16 @@ function formatProductDetail(row) {
   const formattedOrigin = formatCurrency(originPrice);
   if (formattedPrice) {
     let priceLine = `💰 Giá: **${formattedPrice}**`;
-    if (formattedOrigin && originPrice !== price) priceLine += ` ~~${formattedOrigin}~~`;
+    if (formattedOrigin && originPrice !== price)
+      priceLine += ` ~~${formattedOrigin}~~`;
     lines.push(priceLine);
   }
 
   if (stock !== null) lines.push(`📦 Tồn kho: ${stock}`);
-  if (rating !== null) lines.push(`⭐ Đánh giá: ${rating}/5${reviewCount ? ` (${reviewCount} lượt)` : ""}`);
+  if (rating !== null)
+    lines.push(
+      `⭐ Đánh giá: ${rating}/5${reviewCount ? ` (${reviewCount} lượt)` : ""}`,
+    );
 
   if (rawDesc) {
     const clean = stripHtml(rawDesc);
@@ -260,7 +310,8 @@ function formatProductDetail(row) {
         const specLines = Object.entries(parsed)
           .slice(0, 8)
           .map(([k, v]) => `- **${k}:** ${stripHtml(String(v))}`);
-        if (specLines.length) lines.push(`\n⚙️ **Thông số kỹ thuật:**\n\n${specLines.join("\n")}`);
+        if (specLines.length)
+          lines.push(`\n⚙️ **Thông số kỹ thuật:**\n\n${specLines.join("\n")}`);
       }
     } catch {}
   }
@@ -274,7 +325,15 @@ function buildDbAnswer(userPrompt, rows, maxProducts = 3) {
   }
 
   const looksLikeProduct = rows.some(
-    (r) => pickFirst(r, ["name", "variant_name"]) && pickFirst(r, ["MinVariant_min_price", "min_price", "price", "flash_price", "origin_price"]) !== null
+    (r) =>
+      pickFirst(r, ["name", "variant_name"]) &&
+      pickFirst(r, [
+        "MinVariant_min_price",
+        "min_price",
+        "price",
+        "flash_price",
+        "origin_price",
+      ]) !== null,
   );
 
   // Nếu chỉ 1 sản phẩm → hiển thị chi tiết
@@ -283,8 +342,11 @@ function buildDbAnswer(userPrompt, rows, maxProducts = 3) {
   }
 
   const sliced = rows.slice(0, maxProducts);
-  const lines = sliced
-    .map((row, idx) => (looksLikeProduct ? formatProductLine(row, idx) : formatGenericLine(row, idx)));
+  const lines = sliced.map((row, idx) =>
+    looksLikeProduct
+      ? formatProductLine(row, idx)
+      : formatGenericLine(row, idx),
+  );
 
   return `${MESSAGES.RESULT_HEADER(sliced.length, userPrompt)}\n${lines.join("\n")}`;
 }
@@ -300,21 +362,27 @@ function buildRecommendationAnswer(recommendations, maxProducts = 3) {
   const sections = [];
 
   if (recommendations?.featured?.length) {
-    const lines = recommendations.featured.slice(0, maxProducts).map((r, i) => formatProductLine(r, i));
+    const lines = recommendations.featured
+      .slice(0, maxProducts)
+      .map((r, i) => formatProductLine(r, i));
     sections.push(`**${MESSAGES.SECTION_FEATURED}**\n${lines.join("\n")}`);
   }
 
   if (recommendations?.topRated?.length) {
-    const lines = recommendations.topRated.slice(0, maxProducts).map((r, i) => formatProductLine(r, i));
+    const lines = recommendations.topRated
+      .slice(0, maxProducts)
+      .map((r, i) => formatProductLine(r, i));
     sections.push(`**${MESSAGES.SECTION_TOP_RATED}**\n${lines.join("\n")}`);
   }
 
   if (recommendations?.flashSales?.length) {
-    const lines = recommendations.flashSales.slice(0, maxProducts).map((r, i) => {
-      const price = formatCurrency(r.flash_price);
-      const end = formatDateTime(r.end_time);
-      return `${i + 1}. **${r.variant_name || MESSAGES.PRODUCT_FALLBACK_NAME}**${price ? ` - ${price}` : ""}${r.flash_stock !== undefined ? ` (còn: ${r.flash_stock})` : ""}${end ? ` - hết hạn: ${end}` : ""}`;
-    });
+    const lines = recommendations.flashSales
+      .slice(0, maxProducts)
+      .map((r, i) => {
+        const price = formatCurrency(r.flash_price);
+        const end = formatDateTime(r.end_time);
+        return `${i + 1}. **${r.variant_name || MESSAGES.PRODUCT_FALLBACK_NAME}**${price ? ` - ${price}` : ""}${r.flash_stock !== undefined ? ` (còn: ${r.flash_stock})` : ""}${end ? ` - hết hạn: ${end}` : ""}`;
+      });
     sections.push(`**${MESSAGES.SECTION_FLASH_SALE}**\n${lines.join("\n")}`);
   }
 
@@ -325,10 +393,10 @@ function buildRecommendationAnswer(recommendations, maxProducts = 3) {
   return `${MESSAGES.RECOMMEND_HEADER}\n\n${sections.join("\n\n")}`;
 }
 
-/* ─── Controller chính — 3 mode: db / non_db / recommend ─── */
+/*  Controller chính — 3 mode: db / non_db / recommend  */
 export const chatbot = async (req, res) => {
   try {
-    /* ── Kiểm tra chatbot có đang bật không ── */
+    /* iểm tra chatbot có đang bật không  */
     const appConfig = getConfig();
     const runtime = {
       modelName: getModelName(appConfig),
@@ -346,14 +414,22 @@ export const chatbot = async (req, res) => {
     const userPrompt = (req.body.prompt || "").trim();
     const history = Array.isArray(req.body.history) ? req.body.history : [];
 
-    if (!userPrompt) return res.status(400).json({ error: MESSAGES.EMPTY_PROMPT });
+    if (!userPrompt)
+      return res.status(400).json({ error: MESSAGES.EMPTY_PROMPT });
 
-    const { mode, plan, message } = await generatePlan(userPrompt, history, runtime);
+    const { mode, plan, message } = await generatePlan(
+      userPrompt,
+      history,
+      runtime,
+    );
 
     /* ═══════════ MODE: RECOMMEND (Gợi ý sản phẩm) ═══════════ */
     if (mode === "recommend") {
       const recommendations = await getRecommendations();
-      const answer = buildRecommendationAnswer(recommendations, runtime.maxProducts);
+      const answer = buildRecommendationAnswer(
+        recommendations,
+        runtime.maxProducts,
+      );
 
       return res.status(200).json({
         answer,
@@ -406,7 +482,10 @@ export const chatbot = async (req, res) => {
         mode: "non_db",
       });
     }
-    if (e?.message === "GEMINI_TIMEOUT" || e?.message === "GEMINI_UNAVAILABLE") {
+    if (
+      e?.message === "GEMINI_TIMEOUT" ||
+      e?.message === "GEMINI_UNAVAILABLE"
+    ) {
       return res.status(200).json({
         answer: MESSAGES.ERR_AI_BUSY,
         mode: "non_db",

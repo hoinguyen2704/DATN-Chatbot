@@ -51,7 +51,7 @@ export function buildSystemPrompt() {
   return intro + frontendRoutes + rules;
 }
 
-/* ─── Backward-compatible default export ─── */
+/* Backward-compatible default export  */
 export default {
   get system() {
     return buildSystemPrompt();

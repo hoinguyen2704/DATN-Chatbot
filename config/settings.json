@@ -17,7 +17,7 @@
     "name": "Hozitech AI",
     "subtitle": "Trợ lý tư vấn sản phẩm 24/7",
     "welcomeMessage": "Xin chào! Tôi là trợ lý AI của Hozitech\n\nTôi có thể giúp bạn:\n- 🔍 Tìm kiếm & tư vấn sản phẩm công nghệ\n- 💰 Xem giá, khuyến mãi, flash sale\n- ⭐ So sánh đánh giá sản phẩm\n- 📦 Tra cứu thông tin đơn hàng\n\nBạn cần hỗ trợ gì ạ?",
-    "themeColor": "#94c6f5",
+    "themeColor": "#fd8bf4",
     "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=TechStore"
   },
   "ai": {
