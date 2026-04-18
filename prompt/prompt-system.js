@@ -1,24 +1,28 @@
 import { getConfig } from "../config/config-manager.js";
 
-const frontendRoutes = `
-DANH SÁCH TRANG FRONTEND (dùng khi gợi ý link cho khách):
+const SHORT_FRONTEND_ROUTES = `
+TRANG CHÍNH:
 - Trang chủ: /
-- Tìm kiếm sản phẩm: /search
 - Danh sách sản phẩm: /products
-- Chi tiết sản phẩm: /product/:id
-- So sánh sản phẩm: /compare
-- Yêu thích: /wishlist
 - Flash Sale: /flash-sale
-- Blog công nghệ: /blog
-- Chi tiết bài viết: /blog/:id
-- Giới thiệu: /about
-- Điều khoản: /terms
-- Chính sách bảo mật: /privacy
-- Liên hệ: /contact
+- Blog: /blog
 - Giỏ hàng: /cart
 - Thanh toán: /checkout
 - Đăng nhập: /login
 - Đăng ký: /register
+`;
+
+const FULL_FRONTEND_ROUTES = `
+DANH SÁCH TRANG FRONTEND ĐẦY ĐỦ:
+- Tìm kiếm sản phẩm: /search
+- Chi tiết sản phẩm: /product/:slug
+- So sánh sản phẩm: /compare
+- Yêu thích: /wishlist
+- Chi tiết bài viết: /blog/:slug
+- Giới thiệu: /about
+- Điều khoản: /terms
+- Chính sách bảo mật: /privacy
+- Liên hệ: /contact
 - Quên mật khẩu: /forgot-password
 - Hồ sơ cá nhân: /user/profile
 - Sổ địa chỉ: /user/address
@@ -33,14 +37,28 @@ DANH SÁCH TRANG FRONTEND (dùng khi gợi ý link cho khách):
 - Hỗ trợ / Ticket: /user/support
 `;
 
+function normalizePrompt(input = "") {
+  return String(input)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function shouldIncludeFullRouteCatalog(userPrompt = "") {
+  const normalized = normalizePrompt(userPrompt);
+  return /(link|duong dan|route|url|trang nao|vao dau|muc nao|dang nhap|dang ky|gio hang|thanh toan|don hang|voucher|ho tro|blog|chi tiet)/.test(
+    normalized,
+  );
+}
+
 /**
- * Sinh system prompt **động** từ config (thay vì hard-code).
- * Mỗi lần gọi sẽ đọc config mới nhất từ cache.
+ * Sinh system prompt động từ config.
  */
-export function buildSystemPrompt() {
+export function buildSystemPrompt(userPrompt = "") {
   const config = getConfig();
   const shop = config.shopInfo || {};
   const rules = config.ai?.systemRules || "";
+  const includeFullRoutes = shouldIncludeFullRouteCatalog(userPrompt);
 
   const intro =
     `Bạn là chatbot AI của ${shop.name || "Hozitech"} — ${shop.slogan || "Cửa hàng công nghệ"}. ` +
@@ -48,7 +66,9 @@ export function buildSystemPrompt() {
     `Email hỗ trợ: ${shop.email || "N/A"}. Website: ${shop.website || "N/A"}. ` +
     `Thanh toán hỗ trợ: ${(shop.payments || []).join(", ")}.\n`;
 
-  return intro + frontendRoutes + rules;
+  return [intro, SHORT_FRONTEND_ROUTES, includeFullRoutes ? FULL_FRONTEND_ROUTES : "", rules]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /* Backward-compatible default export  */

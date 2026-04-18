@@ -12,7 +12,7 @@ const port = process.env.PORT || 6969;
 /*  CORS: chỉ cho phép origin cụ thể (không mở toang)  */
 const ALLOWED_ORIGINS = (
   process.env.CORS_ORIGINS ||
-  "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+  "http://localhost:3000,http://127.0.0.1:3000"
 )
   .split(",")
   .map((o) => o.trim())

@@ -13,7 +13,9 @@ export const MESSAGES = {
 
   /*  Fallback mặc định  */
   DEFAULT_HINT: (shopName) =>
-    `Bạn muốn tìm hiểu về sản phẩm, khuyến mãi, hay cần tư vấn gì ạ?`,
+    `Bạn muốn tìm hiểu về sản phẩm, khuyến mãi, hay cần tư vấn gì tại ${shopName} ạ?`,
+  GREETING: (shopName) =>
+    `Xin chào! Mình là trợ lý của ${shopName}. Mình có thể giúp tìm sản phẩm, xem khuyến mãi, hoặc gợi ý cấu hình phù hợp cho bạn.`,
 
   /*  DB mode  */
   NO_DATA: (query) =>
@@ -23,6 +25,8 @@ export const MESSAGES = {
 
   /*  Recommend mode  */
   RECOMMEND_HEADER: "Mình gợi ý cho bạn:",
+  RECOMMEND_PERSONAL_HEADER:
+    "Dựa trên lịch sử mua hàng, mình gợi ý riêng cho bạn:",
   RECOMMEND_EMPTY:
     "Hiện tại chưa có dữ liệu gợi ý phù hợp. Bạn có thể hỏi theo danh mục hoặc mức giá cụ thể.",
   SECTION_FEATURED: "Sản phẩm nổi bật",
@@ -35,29 +39,24 @@ export const MESSAGES = {
     "Câu hỏi chưa rõ. Bạn muốn tìm hiểu về sản phẩm, danh mục, khuyến mãi, hay đánh giá ạ?",
   ERR_AI_BUSY:
     "Hệ thống AI đang bận nên phản hồi chậm. Bạn vui lòng thử lại sau ít phút hoặc liên hệ hotline để được hỗ trợ nhanh.",
+  ERR_DB_SYNCING:
+    "Dữ liệu chatbot đang được đồng bộ lại sau khi cập nhật hệ thống. Bạn vui lòng thử lại sau ít phút.",
 
-  /* n system instruction  */
+  /*  Planner system instruction  */
   PLAN_SYSTEM: (shopName, schemaText, fewShot, allowed) =>
     `Bạn là trợ lý lập kế hoạch truy vấn DB của cửa hàng ${shopName}.
-- Luôn cố gắng lập kế hoạch truy vấn vào dữ liệu cửa hàng trước.
+- Ưu tiên truy vấn dữ liệu cửa hàng trước.
 - Trả về JSON: {"resource":"<${allowed}>","joins":[],"select":[],"where":[],"sort":[],"limit":number}
 - CHỈ được JOIN theo "relations" trong CONTRACT.
-- Nếu câu hỏi nhắc tên DANH MỤC (vd "điện thoại", "laptop", "tivi") khi resource=Product:
-  • phải thêm joins:[{"resource":"Category"}]
-  • và lọc theo field "Category.name" (contains/ILIKE).
-- Nếu nhắc tên THƯƠNG HIỆU (vd "apple", "samsung"):
-  • phải thêm joins:[{"resource":"Brand"}]
-  • và lọc theo "Brand.name" (contains/ILIKE).
-- "đánh giá tốt nhất" = JOIN FeedbackStat, sort avg_rating DESC, tie-break review_count DESC.
-- Muốn xem giá bán / tồn kho = JOIN MinVariant (min_price, total_stock).
-- Khi user hỏi CHI TIẾT / CỤ THỂ về 1 sản phẩm (VD: "chi tiết iPhone 17", "thông tin Laptop Lenovo"):
-  • select phải bao gồm: name, description, specs_json, origin_price
-  • joins phải có: Category, Brand, MinVariant, FeedbackStat
-  • select thêm: Category.name, Brand.name, MinVariant.min_price, MinVariant.total_stock, FeedbackStat.avg_rating, FeedbackStat.review_count
-  • limit: 1
+- Resource Product đã có sẵn các field: min_price, max_price, total_stock, avg_rating, review_count, brand_name, category_name, spec_summary.
+- Nếu câu hỏi nhắc tên danh mục khi resource=Product, thêm joins:[{"resource":"Category"}] và lọc "Category.name".
+- Nếu câu hỏi nhắc tên thương hiệu, thêm joins:[{"resource":"Brand"}] và lọc "Brand.name".
+- "đánh giá tốt nhất" = sort avg_rating DESC rồi review_count DESC.
+- Hỏi chi tiết / thông số 1 sản phẩm = resource Product, select trực tiếp name, description, origin_price, min_price, total_stock, brand_name, category_name, avg_rating, review_count, spec_summary, limit 1.
+- Hỏi phiên bản / cấu hình / SKU của 1 sản phẩm = resource ProductVariant, JOIN Product, select Product.name, display_name, attribute_summary, price, compare_at_price, stock_quantity.
 - Ý định mua/bán/sản phẩm/giá → coi là truy vấn Product (không hỏi lại).
-- Nếu câu hỏi là YÊU CẦU GỢI Ý / TƯ VẤN CHUNG (VD: "gợi ý cho mình", "tư vấn giùm", "có gì hay"), trả {"mode":"recommend","intent":"general"}.
-- Nếu thực sự KHÔNG phù hợp truy vấn DB (chit-chat thuần), trả {"message":"<gợi ý lịch sự>"}.
+- Yêu cầu gợi ý / tư vấn chung như "gợi ý cho mình", "tư vấn giùm", "có gì hay" → trả {"mode":"recommend","intent":"general"}.
+- Chỉ khi thực sự không phải câu hỏi dữ liệu cửa hàng mới trả {"message":"<gợi ý lịch sự>"}.
 - Không sinh SQL. Không bịa tên bảng/field.
 
 ${schemaText}
