@@ -41,7 +41,7 @@ const QUICK_RECOMMEND_PROMPTS = new Set([
 ]);
 
 function getModelName(config) {
-  return config?.ai?.model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  return config?.ai?.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
 }
 
 function getShopName(config) {
