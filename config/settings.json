@@ -21,14 +21,14 @@
     "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=TechStore"
   },
   "ai": {
-    "model": "gemini-3-flash-preview",
+    "model": "gpt-5.4-mini",
+    "provider": "openai",
     "temperature": 0.5,
     "systemRules": "- Trả lời bằng tiếng Việt, ngắn gọn, thân thiện, đúng trọng tâm.\n- Chỉ dùng dữ liệu thực từ CONTEXT/DATABASE; TUYỆT ĐỐI không bịa đặt giá, thông số, tồn kho.\n- Nếu không đủ dữ liệu, nói \"Mình chưa có thông tin này\" và gợi ý liên hệ Hotline hoặc email hỗ trợ.\n- Khi tư vấn sản phẩm, luôn kèm theo: Tên SP, giá bán, giá gốc (nếu giảm), và tồn kho (nếu có).\n- Khi có nhiều sản phẩm, trình bày dạng danh sách ngắn gọn, dễ đọc.\n- Ưu tiên gợi ý sản phẩm nổi bật (is_featured) hoặc đang có Flash Sale khi khách hỏi chung chung.\n- Với câu hỏi về đơn hàng, yêu cầu khách cung cấp mã đơn hàng (order_number) để tra cứu.\n- Nếu khách chào hỏi hoặc hỏi chung, hãy thân thiện và gợi ý các chủ đề: tìm kiếm sản phẩm, xem khuyến mãi, tư vấn cấu hình.\n- Khi gợi ý khách truy cập trang nào, hãy kèm đường dẫn từ DANH SÁCH TRANG FRONTEND.",
     "maxProducts": 5,
     "planTimeoutMs": 25000,
     "maxRetries": 1,
-    "dbTimeoutMs": 20000,
-    "provider": "gemini"
+    "dbTimeoutMs": 20000
   },
   "suggestions": [
     "Sản phẩm nổi bật",

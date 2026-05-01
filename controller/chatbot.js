@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { contractToPrompt } from "../prompt/contract-to-prompt.js";
 import { fewShotExamples } from "../prompt/few-shot.js";
 import { validatePlan } from "../prompt/plan-validate.js";
@@ -14,8 +15,10 @@ import { getConfig } from "../config/config-manager.js";
 import { MESSAGES } from "../constants/messages.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let openAIClient = null;
 const DEBUG_RESPONSE = process.env.CHATBOT_DEBUG_RESPONSE === "true";
-const FALLBACK_MODEL = "gemini-2.0-flash";
+const FALLBACK_MODEL = "gemini-3-flash-preview";
+const OPENAI_FALLBACK_MODEL = "gpt-5.4-mini";
 
 const HISTORY_BUDGETS = {
   planner: {
@@ -41,7 +44,85 @@ const QUICK_RECOMMEND_PROMPTS = new Set([
 ]);
 
 function getModelName(config) {
-  return config?.ai?.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const provider = getAIProvider(config);
+  if (provider === "openai") {
+    return (
+      config?.ai?.model ||
+      process.env.OPENAI_MODEL ||
+      process.env.CHATBOT_AI_MODEL ||
+      OPENAI_FALLBACK_MODEL
+    );
+  }
+
+  return (
+    config?.ai?.model ||
+    process.env.GEMINI_MODEL ||
+    process.env.CHATBOT_AI_MODEL ||
+    FALLBACK_MODEL
+  );
+}
+
+function getEnvProvider() {
+  const provider = String(
+    process.env.CHATBOT_AI_PROVIDER ||
+      process.env.AI_PROVIDER ||
+      process.env.LLM_PROVIDER ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  return provider === "openai" || provider === "gemini" ? provider : null;
+}
+
+function getConfiguredProvider(config) {
+  const provider = String(config?.ai?.provider || "").trim().toLowerCase();
+  return provider === "openai" || provider === "gemini" ? provider : null;
+}
+
+function isOpenAIModel(modelName = "") {
+  return /^(gpt-|o\d|o-|chatgpt-)/i.test(String(modelName).trim());
+}
+
+function getAIProvider(config, modelName) {
+  const configuredProvider = getConfiguredProvider(config);
+  if (configuredProvider) return configuredProvider;
+  if (modelName && isOpenAIModel(modelName)) return "openai";
+  const envProvider = getEnvProvider();
+  if (envProvider) return envProvider;
+  if (
+    isOpenAIModel(process.env.OPENAI_MODEL || process.env.CHATBOT_AI_MODEL || "")
+  ) {
+    return "openai";
+  }
+  return "gemini";
+}
+
+function getErrorStatus(error) {
+  return error?.status || error?.response?.status;
+}
+
+function getOpenAIErrorCode(error) {
+  return error?.code || error?.error?.code;
+}
+
+function shouldFallbackToGemini(error) {
+  const status = getErrorStatus(error);
+  const code = getOpenAIErrorCode(error);
+  const message = String(error?.message || error?.error?.message || "");
+
+  return (
+    error?.message === "OPENAI_API_KEY_MISSING" ||
+    error?.message === "OPENAI_TIMEOUT" ||
+    status === 429 ||
+    code === "insufficient_quota" ||
+    code === "rate_limit_exceeded" ||
+    /quota|rate limit|billing|token/i.test(message)
+  );
+}
+
+function getGeminiFallbackModels() {
+  return [...new Set([process.env.GEMINI_MODEL || FALLBACK_MODEL, FALLBACK_MODEL])];
 }
 
 function getShopName(config) {
@@ -105,6 +186,31 @@ function formatGeminiHistory(history) {
     role: message.role === "bot" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
+}
+
+function formatOpenAIInput(history, userMessage) {
+  return [
+    ...history.map((message) => ({
+      role: message.role === "bot" ? "assistant" : "user",
+      content: message.content,
+    })),
+    {
+      role: "user",
+      content: userMessage,
+    },
+  ];
+}
+
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY_MISSING");
+  }
+
+  if (!openAIClient) {
+    openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+
+  return openAIClient;
 }
 
 async function callGemini(
@@ -181,6 +287,119 @@ async function callGemini(
   throw lastError || new Error("GEMINI_UNAVAILABLE");
 }
 
+async function callOpenAI(
+  systemInstruction,
+  history,
+  userMessage,
+  jsonMode = false,
+  options = {},
+) {
+  const client = getOpenAIClient();
+  const modelName = options.modelName || process.env.OPENAI_MODEL || OPENAI_FALLBACK_MODEL;
+  const temperature = options.temperature ?? 0.7;
+  const maxRetries = options.maxRetries ?? 3;
+  const timeoutMs =
+    options.timeoutMs ?? (Number(process.env.OPENAI_TIMEOUT_MS) || 25000);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      const startedAt = Date.now();
+      console.log(`[OPENAI START] model=${modelName} json=${jsonMode}`);
+      const request = {
+        model: modelName,
+        instructions: systemInstruction,
+        input: formatOpenAIInput(
+          history,
+          jsonMode
+            ? `${userMessage}\n\nReturn only valid json. Do not include markdown fences or extra text.`
+            : userMessage,
+        ),
+        store: process.env.OPENAI_STORE_RESPONSES === "true",
+        temperature,
+      };
+
+      if (jsonMode) {
+        request.text = { format: { type: "json_object" } };
+      }
+
+      const result = await withTimeout(
+        client.responses.create(request),
+        timeoutMs,
+        "OPENAI_TIMEOUT",
+      );
+      console.log(
+        `[OPENAI DONE] model=${modelName} ms=${Date.now() - startedAt}`,
+      );
+      return result.output_text || "";
+    } catch (error) {
+      lastError = error;
+      const status = getErrorStatus(error);
+      const errorCode = getOpenAIErrorCode(error);
+      const isTimeout = error?.message === "OPENAI_TIMEOUT";
+      const isRetryable =
+        errorCode !== "insufficient_quota" &&
+        (status === 429 ||
+          status === 500 ||
+          status === 502 ||
+          status === 503 ||
+          status === 504 ||
+          isTimeout ||
+          ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT"].includes(error?.code));
+
+      if (isRetryable && attempt < maxRetries) {
+        const delay = Math.min(attempt * 1000, 3000);
+        console.log(
+          `[OPENAI RETRY] ${modelName} attempt ${attempt}/${maxRetries} (${status || error?.code || error?.message}), wait ${delay}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError || new Error("OPENAI_UNAVAILABLE");
+}
+
+async function callAI(
+  systemInstruction,
+  history,
+  userMessage,
+  jsonMode = false,
+  options = {},
+) {
+  if (options.provider === "openai") {
+    try {
+      return await callOpenAI(
+        systemInstruction,
+        history,
+        userMessage,
+        jsonMode,
+        options,
+      );
+    } catch (error) {
+      if (!shouldFallbackToGemini(error)) {
+        throw error;
+      }
+
+      const fallbackModels = getGeminiFallbackModels();
+      console.warn(
+        `[OPENAI FALLBACK] ${options.modelName || OPENAI_FALLBACK_MODEL} failed (${getOpenAIErrorCode(error) || getErrorStatus(error) || error.message}), switching to ${fallbackModels[0]}`,
+      );
+
+      return callGemini(systemInstruction, history, userMessage, jsonMode, {
+        ...options,
+        modelName: fallbackModels[0],
+        modelsToTry: fallbackModels,
+      });
+    }
+  }
+
+  return callGemini(systemInstruction, history, userMessage, jsonMode, options);
+}
+
 async function generatePlan(question, history, runtime) {
   const schemaText = contractToPrompt();
   const allowed = Object.keys(CONTRACT.resources).join(", ");
@@ -192,10 +411,11 @@ async function generatePlan(question, history, runtime) {
     allowed,
   );
 
-  const text = await callGemini(systemInstruction, history, question, true, {
+  const text = await callAI(systemInstruction, history, question, true, {
     timeoutMs: cfg?.ai?.planTimeoutMs || 20000,
     maxRetries: cfg?.ai?.maxRetries ?? 2,
     modelName: runtime.modelName,
+    provider: runtime.provider,
     temperature: runtime.temperature,
   });
 
@@ -579,8 +799,10 @@ function buildRecommendationAnswer(recommendations, maxProducts = 3) {
 export const chatbot = async (req, res) => {
   try {
     const appConfig = getConfig();
+    const modelName = getModelName(appConfig);
     const runtime = {
-      modelName: getModelName(appConfig),
+      modelName,
+      provider: getAIProvider(appConfig, modelName),
       temperature: appConfig.ai?.temperature ?? 0.7,
       maxProducts: appConfig.ai?.maxProducts ?? 3,
       dbTimeoutMs: appConfig.ai?.dbTimeoutMs ?? 6000,
@@ -634,13 +856,14 @@ export const chatbot = async (req, res) => {
 
       try {
         const systemPrompt = buildSystemPrompt(userPrompt);
-        const naturalAnswer = await callGemini(
+        const naturalAnswer = await callAI(
           systemPrompt,
           replyHistory,
           userPrompt,
           false,
           {
             modelName: runtime.modelName,
+            provider: runtime.provider,
             temperature: Math.min(runtime.temperature + 0.1, 1.0),
             maxRetries: 1,
             timeoutMs: appConfig.ai?.planTimeoutMs || 60000,
@@ -731,7 +954,10 @@ export const chatbot = async (req, res) => {
 
     if (
       error?.message === "GEMINI_TIMEOUT" ||
-      error?.message === "GEMINI_UNAVAILABLE"
+      error?.message === "GEMINI_UNAVAILABLE" ||
+      error?.message === "OPENAI_TIMEOUT" ||
+      error?.message === "OPENAI_UNAVAILABLE" ||
+      error?.message === "OPENAI_API_KEY_MISSING"
     ) {
       return res.status(200).json({
         answer: MESSAGES.ERR_AI_BUSY,
