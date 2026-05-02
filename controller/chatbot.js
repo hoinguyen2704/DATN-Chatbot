@@ -43,6 +43,68 @@ const QUICK_RECOMMEND_PROMPTS = new Set([
   "dexuatchotoi",
 ]);
 
+const COMPARISON_INTENT_PATTERN =
+  /(so sánh|so với|\bvs\.?\b|nên mua|nên chọn|chọn giữa|khác nhau|đáng mua hơn|tốt hơn)/i;
+const COMPARISON_SPLITTERS = [
+  /\s+so với\s+/i,
+  /\s+\bvs\.?\b\s+/i,
+  /\s+với\s+/i,
+  /\s+hay\s+/i,
+  /\s+và\s+/i,
+];
+
+function cleanupComparisonTerm(term = "") {
+  return String(term || "")
+    .replace(/^[\s"'“”‘’,.:;!?()[\]-]+|[\s"'“”‘’,.:;!?()[\]-]+$/g, "")
+    .replace(
+      /^(so sánh|so với|compare|giữa|nên mua|nên chọn|chọn giữa|chọn|giúp mình so sánh|giup minh so sanh|tư vấn|tu van)\s+/i,
+      "",
+    )
+    .replace(
+      /\s+(?:và|va)\s+(?:cho|giúp|giup|nói|noi|kèm|kem)\b.*$/i,
+      "",
+    )
+    .replace(
+      /\b(cái nào|mẫu nào|con nào|ưu nhược điểm|ưu điểm|nhược điểm|tốt hơn|ổn hơn|đáng mua hơn|nên mua cái nào|nên chọn cái nào|khác nhau chỗ nào|thì sao)\b.*$/i,
+      "",
+    )
+    .replace(
+      /\s+có\s+(?:thông số|cấu hình|điểm gì|điểm nào|điểm|điều gì|điều nào|điều|gì|những gì|tính năng)(?:\s+.*)?$/i,
+      "",
+    )
+    .replace(
+      /\s+(?:vượt trội|nổi bật|ấn tượng|đáng tiền|mạnh hơn|hơn ở điểm nào)(?:\s+.*)?$/i,
+      "",
+    )
+    .replace(/\s+(nhé|nha|ạ|a|giùm|dum|giúp mình|giup minh)$/i, "")
+    .trim();
+}
+
+function extractComparisonTerms(userPrompt = "") {
+  const prompt = String(userPrompt || "").replace(/\s+/g, " ").trim();
+  if (!prompt || !COMPARISON_INTENT_PATTERN.test(prompt)) {
+    return [];
+  }
+
+  const working = prompt
+    .replace(/^(giúp mình|giup minh|cho mình|cho minh|tư vấn|tu van)\s+/i, "")
+    .replace(/^(so sánh|compare)\s+/i, "")
+    .replace(/^(nên mua|nên chọn|chọn giữa)\s+/i, "");
+
+  for (const splitter of COMPARISON_SPLITTERS) {
+    const parts = working
+      .split(splitter, 2)
+      .map((part) => cleanupComparisonTerm(part))
+      .filter(Boolean);
+    const uniqueParts = [...new Set(parts)];
+    if (uniqueParts.length >= 2) {
+      return uniqueParts.slice(0, 2);
+    }
+  }
+
+  return [];
+}
+
 function getModelName(config) {
   const provider = getAIProvider(config);
   if (provider === "openai") {
@@ -456,6 +518,15 @@ function buildShortcutResult(userPrompt, shopName) {
     };
   }
 
+  const comparisonTerms = extractComparisonTerms(userPrompt);
+  if (comparisonTerms.length === 2) {
+    return {
+      mode: "compare",
+      terms: comparisonTerms,
+      skipLlm: true,
+    };
+  }
+
   if (normalized === "sanphamnoibat") {
     return {
       mode: "db",
@@ -722,6 +793,245 @@ function buildDbAnswer(userPrompt, resource, rows, maxProducts = 3) {
   return `${MESSAGES.RESULT_HEADER(sliced.length, userPrompt)}\n${lines.join("\n")}`;
 }
 
+function formatRatingSummary(row) {
+  const rating = toNumber(row?.avg_rating);
+  const reviewCount = toNumber(row?.review_count);
+  if (rating === null) return "Chưa có đánh giá";
+  return `${rating}/5${reviewCount !== null ? ` (${reviewCount} đánh giá)` : ""}`;
+}
+
+function getSpecHighlights(specSummary, limit = 3) {
+  return String(specSummary || "")
+    .split(/\n+/)
+    .map((line) => stripHtml(line).replace(/^[-*•]\s*/, ""))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function buildRelativeNotes(primary, secondary) {
+  const advantages = [];
+  const considerations = [];
+
+  const primaryPrice = toNumber(primary?.min_price);
+  const secondaryPrice = toNumber(secondary?.min_price);
+  if (primaryPrice !== null && secondaryPrice !== null) {
+    if (primaryPrice < secondaryPrice) {
+      const gap = secondaryPrice - primaryPrice;
+      advantages.push(
+        `Giá thấp hơn ${secondary.name}${gap > 0 ? ` khoảng ${formatCurrency(gap)}` : ""}.`,
+      );
+    } else if (primaryPrice > secondaryPrice) {
+      const gap = primaryPrice - secondaryPrice;
+      considerations.push(
+        `Giá cao hơn ${secondary.name}${gap > 0 ? ` khoảng ${formatCurrency(gap)}` : ""}.`,
+      );
+    }
+  }
+
+  const primaryRating = toNumber(primary?.avg_rating);
+  const secondaryRating = toNumber(secondary?.avg_rating);
+  if (primaryRating !== null && secondaryRating !== null) {
+    if (primaryRating > secondaryRating) {
+      advantages.push(
+        `Điểm đánh giá cao hơn (${primaryRating}/5 so với ${secondaryRating}/5).`,
+      );
+    } else if (primaryRating < secondaryRating) {
+      considerations.push(
+        `Điểm đánh giá thấp hơn (${primaryRating}/5 so với ${secondaryRating}/5).`,
+      );
+    }
+  }
+
+  const primaryReviews = toNumber(primary?.review_count);
+  const secondaryReviews = toNumber(secondary?.review_count);
+  if (primaryReviews !== null && secondaryReviews !== null) {
+    if (primaryReviews > secondaryReviews) {
+      advantages.push(
+        `Có nhiều lượt đánh giá hơn (${primaryReviews} so với ${secondaryReviews}).`,
+      );
+    } else if (primaryReviews < secondaryReviews) {
+      considerations.push(
+        `Ít lượt đánh giá hơn (${primaryReviews} so với ${secondaryReviews}).`,
+      );
+    }
+  }
+
+  const primaryStock = toNumber(primary?.total_stock);
+  const secondaryStock = toNumber(secondary?.total_stock);
+  if (primaryStock !== null && secondaryStock !== null) {
+    if (primaryStock > secondaryStock) {
+      advantages.push(
+        `Tồn kho sẵn hàng hơn (${primaryStock} so với ${secondaryStock}).`,
+      );
+    } else if (primaryStock < secondaryStock) {
+      considerations.push(
+        `Tồn kho thấp hơn (${primaryStock} so với ${secondaryStock}).`,
+      );
+    }
+  }
+
+  const specHighlights = getSpecHighlights(primary?.spec_summary, 2);
+  if (specHighlights.length) {
+    advantages.push(`Thông số nổi bật: ${specHighlights.join("; ")}.`);
+  }
+
+  return { advantages, considerations };
+}
+
+function buildBulletSection(title, items, fallback) {
+  const lines = items?.length ? items.map((item) => `- ${item}`) : [`- ${fallback}`];
+  return `**${title}**\n${lines.join("\n")}`;
+}
+
+function buildComparisonAnswer(leftProduct, rightProduct) {
+  const leftName = leftProduct?.name || MESSAGES.PRODUCT_FALLBACK_NAME;
+  const rightName = rightProduct?.name || MESSAGES.PRODUCT_FALLBACK_NAME;
+  const leftPrice = formatCurrency(leftProduct?.min_price) || "Chưa có giá";
+  const rightPrice = formatCurrency(rightProduct?.min_price) || "Chưa có giá";
+  const leftStock = toNumber(leftProduct?.total_stock);
+  const rightStock = toNumber(rightProduct?.total_stock);
+  const leftNotes = buildRelativeNotes(leftProduct, rightProduct);
+  const rightNotes = buildRelativeNotes(rightProduct, leftProduct);
+
+  const summaryLines = [
+    `- Giá thấp nhất: **${leftName}** ${leftPrice} | **${rightName}** ${rightPrice}`,
+    `- Đánh giá: **${leftName}** ${formatRatingSummary(leftProduct)} | **${rightName}** ${formatRatingSummary(rightProduct)}`,
+  ];
+
+  if (leftStock !== null || rightStock !== null) {
+    summaryLines.push(
+      `- Tồn kho: **${leftName}** ${leftStock ?? "N/A"} | **${rightName}** ${rightStock ?? "N/A"}`,
+    );
+  }
+
+  return [
+    `**So sánh nhanh: ${leftName} và ${rightName}**`,
+    "",
+    ...summaryLines,
+    "",
+    buildBulletSection(
+      `Ưu điểm tương đối của ${leftName}`,
+      leftNotes.advantages,
+      "Chưa có thêm dữ liệu nổi trội để kết luận rõ hơn.",
+    ),
+    "",
+    buildBulletSection(
+      `Điểm cần cân nhắc của ${leftName}`,
+      leftNotes.considerations,
+      "Chưa thấy bất lợi rõ ràng từ dữ liệu hiện có.",
+    ),
+    "",
+    buildBulletSection(
+      `Ưu điểm tương đối của ${rightName}`,
+      rightNotes.advantages,
+      "Chưa có thêm dữ liệu nổi trội để kết luận rõ hơn.",
+    ),
+    "",
+    buildBulletSection(
+      `Điểm cần cân nhắc của ${rightName}`,
+      rightNotes.considerations,
+      "Chưa thấy bất lợi rõ ràng từ dữ liệu hiện có.",
+    ),
+  ].join("\n");
+}
+
+async function findBestMatchingProduct(term, queryTimeoutMs = 6000) {
+  const normalizedTerm = cleanupComparisonTerm(term);
+  if (!normalizedTerm) return null;
+
+  const flexibleLike = `%${normalizedTerm.replace(/\s+/g, "%")}%`;
+  const prefixLike = `${normalizedTerm.replace(/\s+/g, "%")}%`;
+  const sql = `
+    SELECT
+      id,
+      name,
+      slug,
+      description,
+      origin_price,
+      min_price,
+      max_price,
+      total_stock,
+      avg_rating,
+      review_count,
+      spec_summary,
+      brand_name,
+      category_name,
+      created_at
+    FROM v_chatbot_products
+    WHERE status = 'ACTIVE'
+      AND (
+        name ILIKE $1
+        OR COALESCE(spec_summary, '') ILIKE $1
+        OR COALESCE(description, '') ILIKE $1
+      )
+    ORDER BY
+      CASE
+        WHEN LOWER(name) = LOWER($2) THEN 0
+        WHEN LOWER(name) LIKE LOWER($3) THEN 1
+        ELSE 2
+      END,
+      review_count DESC NULLS LAST,
+      avg_rating DESC NULLS LAST,
+      total_stock DESC NULLS LAST,
+      created_at DESC
+    LIMIT 1
+  `;
+
+  const result = await runReadOnly(
+    sql,
+    [flexibleLike, normalizedTerm, prefixLike],
+    queryTimeoutMs,
+  );
+
+  return result.rows?.[0] || null;
+}
+
+async function resolveComparisonProducts(terms, queryTimeoutMs = 6000) {
+  const normalizedTerms = Array.isArray(terms)
+    ? terms.map((term) => cleanupComparisonTerm(term)).filter(Boolean)
+    : [];
+
+  if (normalizedTerms.length < 2) {
+    return { products: [], missingTerms: normalizedTerms };
+  }
+
+  const matches = await Promise.all(
+    normalizedTerms.map((term) => findBestMatchingProduct(term, queryTimeoutMs)),
+  );
+
+  const products = [];
+  const missingTerms = [];
+  const seenIds = new Set();
+
+  matches.forEach((match, index) => {
+    if (!match) {
+      missingTerms.push(normalizedTerms[index]);
+      return;
+    }
+    if (seenIds.has(match.id)) {
+      missingTerms.push(normalizedTerms[index]);
+      return;
+    }
+    seenIds.add(match.id);
+    products.push(match);
+  });
+
+  return { products, missingTerms };
+}
+
+function buildComparisonFallbackAnswer(terms, products, missingTerms) {
+  if (!products.length) {
+    return `Mình chưa xác định được đủ hai sản phẩm trong câu hỏi "${terms.join(" và ")}". Bạn hãy ghi rõ lại tên từng sản phẩm để mình so sánh chính xác hơn.`;
+  }
+
+  const foundNames = products.map((product) => product.name).join(" và ");
+  if (missingTerms.length) {
+    return `Mình mới khớp được ${foundNames}. Chưa tìm thấy rõ sản phẩm còn lại (${missingTerms.join(", ")}), nên chưa thể so sánh chuẩn.`;
+  }
+
+  return `Mình chưa xác định được đủ hai sản phẩm khác nhau để so sánh. Bạn hãy ghi rõ lại tên từng sản phẩm giúp mình.`;
+}
+
 function formatDateTime(input) {
   if (!input) return null;
   const dateValue = new Date(input);
@@ -827,7 +1137,25 @@ export const chatbot = async (req, res) => {
     const shortcut = buildShortcutResult(userPrompt, getShopName(appConfig));
     const planResult =
       shortcut || (await generatePlan(userPrompt, plannerHistory, runtime));
-    const { mode, plan, message, skipLlm } = planResult;
+    const { mode, plan, message, skipLlm, terms } = planResult;
+
+    if (mode === "compare") {
+      const { products, missingTerms } = await resolveComparisonProducts(
+        terms,
+        runtime.dbTimeoutMs,
+      );
+      const answer =
+        products.length === 2
+          ? buildComparisonAnswer(products[0], products[1])
+          : buildComparisonFallbackAnswer(terms || [], products, missingTerms);
+
+      return res.status(200).json({
+        answer,
+        mode: "db",
+        resultCount: products.length,
+        data: products,
+      });
+    }
 
     if (mode === "recommend") {
       const userId = req.userId || null;
