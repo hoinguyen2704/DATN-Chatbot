@@ -34,3 +34,5 @@ tmp/
 temp/
 .DS_Store
 .env.development
+.agent/
+.agents/
