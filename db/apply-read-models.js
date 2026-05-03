@@ -158,7 +158,8 @@ async function verifyViews(client) {
       to_regclass('public.v_chatbot_products') AS v_chatbot_products,
       to_regclass('public.v_chatbot_product_variants') AS v_chatbot_product_variants,
       to_regclass('public.v_chatbot_flash_sale_items') AS v_chatbot_flash_sale_items,
-      to_regclass('public.v_chatbot_user_purchase_events') AS v_chatbot_user_purchase_events
+      to_regclass('public.v_chatbot_user_purchase_events') AS v_chatbot_user_purchase_events,
+      to_regclass('public.v_chatbot_orders') AS v_chatbot_orders
   `);
 
   const row = result.rows[0] || {};

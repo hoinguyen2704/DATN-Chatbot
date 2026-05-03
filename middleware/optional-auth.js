@@ -24,7 +24,7 @@ export function optionalAuth(req, _res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     // Spring Boot JWT thường dùng "sub" hoặc "userId" claim
-    req.userId = decoded.sub || decoded.userId || null;
+    req.userId = decoded.userId || decoded.sub || null;
     if (req.userId) {
       console.log(`[AUTH] Identified user: ${req.userId}`);
     }

@@ -166,10 +166,57 @@ SELECT
   p.name AS product_name,
   pv.display_name,
   p.status AS product_status,
-  pv.status AS variant_status
+  pv.status AS variant_status,
+  u.email AS user_email
 FROM orders o
+INNER JOIN users u ON u.id = o.user_id
 INNER JOIN order_items oi ON oi.order_id = o.id
 INNER JOIN product_variants pv ON pv.id = oi.variant_id
 INNER JOIN products p ON p.id = pv.product_id
 LEFT JOIN categories c ON c.id = p.category_id
 LEFT JOIN brands b ON b.id = p.brand_id;
+
+CREATE OR REPLACE VIEW v_chatbot_orders AS
+WITH order_item_summary AS (
+  SELECT
+    oi.order_id,
+    COUNT(*)::INTEGER AS item_count,
+    string_agg(
+      CONCAT(
+        p.name,
+        CASE
+          WHEN pv.display_name IS NOT NULL
+           AND btrim(pv.display_name) <> ''
+           AND pv.display_name <> p.name
+          THEN CONCAT(' - ', pv.display_name)
+          ELSE ''
+        END,
+        ' x',
+        oi.quantity
+      ),
+      '; '
+      ORDER BY oi.created_at ASC, p.name ASC
+    ) AS item_summary
+  FROM order_items oi
+  INNER JOIN product_variants pv ON pv.id = oi.variant_id
+  INNER JOIN products p ON p.id = pv.product_id
+  GROUP BY oi.order_id
+)
+SELECT
+  o.user_id,
+  u.email AS user_email,
+  o.id AS order_id,
+  o.order_number,
+  o.created_at,
+  o.order_status,
+  o.payment_status,
+  o.tracking_code,
+  o.subtotal,
+  o.shipping_fee,
+  o.discount_amount,
+  o.total_amount,
+  COALESCE(oi.item_count, 0)::INTEGER AS item_count,
+  oi.item_summary
+FROM orders o
+INNER JOIN users u ON u.id = o.user_id
+LEFT JOIN order_item_summary oi ON oi.order_id = o.id;

@@ -4,6 +4,7 @@ import {
   resetConfig,
   getDefaults,
 } from "../config/config-manager.js";
+import { getModelCatalog } from "../config/model-catalog.js";
 
 /**
  * GET /api/v1/chatbot/admin/config
@@ -75,6 +76,20 @@ export const getAdminDefaults = (_req, res) => {
   } catch (e) {
     console.error("[ADMIN] getDefaults error:", e.message);
     return res.status(500).json({ error: "Failed to read defaults" });
+  }
+};
+
+/**
+ * GET /api/v1/chatbot/admin/models
+ * Trả danh sách model khả dụng để admin chọn trên frontend
+ */
+export const getAdminModels = async (_req, res) => {
+  try {
+    const catalog = await getModelCatalog();
+    return res.status(200).json(catalog);
+  } catch (e) {
+    console.error("[ADMIN] getModelCatalog error:", e.message);
+    return res.status(500).json({ error: "Failed to read model catalog" });
   }
 };
 

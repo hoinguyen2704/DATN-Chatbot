@@ -5,6 +5,7 @@ import {
   updateAdminConfig,
   resetAdminConfig,
   getAdminDefaults,
+  getAdminModels,
   getWidgetConfig,
 } from "../controller/admin.js";
 
@@ -110,6 +111,7 @@ router.get("/config", adminAuth, getAdminConfig);
 router.put("/config", adminAuth, updateAdminConfig);
 router.post("/config/reset", adminAuth, resetAdminConfig);
 router.get("/config/defaults", adminAuth, getAdminDefaults);
+router.get("/models", adminAuth, getAdminModels);
 
 /*  Widget config (public — no auth)  */
 router.get("/widget-config", getWidgetConfig);

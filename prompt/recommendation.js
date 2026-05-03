@@ -4,6 +4,7 @@ const PURCHASED_ORDER_STATUSES = ["COMPLETED", "SHIPPED", "PROCESSING"];
 const PURCHASED_ORDER_STATUSES_SQL = PURCHASED_ORDER_STATUSES
   .map((status) => `'${status}'`)
   .join(", ");
+const USER_MATCH_SQL = "(user_id::text = $1 OR user_email = $1)";
 
 /**
  * Gợi ý chung (anonymous user) — 3 query song song:
@@ -61,6 +62,8 @@ export async function getRecommendations() {
           sold_count
         FROM v_chatbot_flash_sale_items
         WHERE sale_status = 'ACTIVE'
+          AND start_time <= NOW()
+          AND end_time >= NOW()
         ORDER BY flash_price ASC
         LIMIT 5
       `,
@@ -112,14 +115,14 @@ export async function getPersonalizedRecommendations(userId) {
           AND p.category_id IN (
             SELECT DISTINCT category_id
             FROM v_chatbot_user_purchase_events
-            WHERE user_id = $1
+            WHERE ${USER_MATCH_SQL}
               AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
               AND category_id IS NOT NULL
           )
           AND p.id NOT IN (
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
-            WHERE user_id = $1
+            WHERE ${USER_MATCH_SQL}
               AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
           )
         ORDER BY COALESCE(p.avg_rating, 0) DESC, p.created_at DESC
@@ -143,14 +146,14 @@ export async function getPersonalizedRecommendations(userId) {
           AND p.brand_id IN (
             SELECT DISTINCT brand_id
             FROM v_chatbot_user_purchase_events
-            WHERE user_id = $1
+            WHERE ${USER_MATCH_SQL}
               AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
               AND brand_id IS NOT NULL
           )
           AND p.id NOT IN (
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
-            WHERE user_id = $1
+            WHERE ${USER_MATCH_SQL}
               AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
           )
         ORDER BY p.created_at DESC
@@ -165,7 +168,7 @@ export async function getPersonalizedRecommendations(userId) {
         WITH user_products AS (
           SELECT DISTINCT product_id
           FROM v_chatbot_user_purchase_events
-          WHERE user_id = $1
+          WHERE ${USER_MATCH_SQL}
             AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
         ),
         related_orders AS (
@@ -199,7 +202,7 @@ export async function getPersonalizedRecommendations(userId) {
         WITH user_avg AS (
           SELECT AVG(unit_price) AS avg_price
           FROM v_chatbot_user_purchase_events
-          WHERE user_id = $1
+          WHERE ${USER_MATCH_SQL}
             AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
         )
         SELECT
@@ -218,7 +221,7 @@ export async function getPersonalizedRecommendations(userId) {
           AND p.id NOT IN (
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
-            WHERE user_id = $1
+            WHERE ${USER_MATCH_SQL}
               AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
           )
         ORDER BY COALESCE(p.avg_rating, 0) DESC, p.created_at DESC
@@ -269,6 +272,8 @@ export async function getPersonalizedRecommendations(userId) {
           sold_count
        FROM v_chatbot_flash_sale_items
        WHERE sale_status = 'ACTIVE'
+         AND start_time <= NOW()
+         AND end_time >= NOW()
        ORDER BY flash_price ASC
        LIMIT 5`,
       [],
