@@ -153,6 +153,7 @@ SELECT
   o.user_id,
   o.id AS order_id,
   o.order_status,
+  o.payment_status,
   o.created_at AS ordered_at,
   oi.variant_id,
   pv.product_id,

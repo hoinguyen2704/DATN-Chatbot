@@ -1,9 +1,17 @@
 import { runReadOnly } from "../db/executor.js";
 
-const PURCHASED_ORDER_STATUSES = ["COMPLETED", "SHIPPED", "PROCESSING"];
+const PURCHASED_ORDER_STATUSES = ["CONFIRMED", "PROCESSING", "SHIPPING", "SHIPPED"];
 const PURCHASED_ORDER_STATUSES_SQL = PURCHASED_ORDER_STATUSES
   .map((status) => `'${status}'`)
   .join(", ");
+const PURCHASED_PAYMENT_STATUSES = ["COMPLETED"];
+const PURCHASED_PAYMENT_STATUSES_SQL = PURCHASED_PAYMENT_STATUSES
+  .map((status) => `'${status}'`)
+  .join(", ");
+const PURCHASE_EVENT_SQL = `(
+  order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+  OR payment_status IN (${PURCHASED_PAYMENT_STATUSES_SQL})
+)`;
 const USER_MATCH_SQL = "(user_id::text = $1 OR user_email = $1)";
 
 /**
@@ -116,14 +124,14 @@ export async function getPersonalizedRecommendations(userId) {
             SELECT DISTINCT category_id
             FROM v_chatbot_user_purchase_events
             WHERE ${USER_MATCH_SQL}
-              AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+              AND ${PURCHASE_EVENT_SQL}
               AND category_id IS NOT NULL
           )
           AND p.id NOT IN (
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
             WHERE ${USER_MATCH_SQL}
-              AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+              AND ${PURCHASE_EVENT_SQL}
           )
         ORDER BY COALESCE(p.avg_rating, 0) DESC, p.created_at DESC
         LIMIT 5
@@ -147,14 +155,14 @@ export async function getPersonalizedRecommendations(userId) {
             SELECT DISTINCT brand_id
             FROM v_chatbot_user_purchase_events
             WHERE ${USER_MATCH_SQL}
-              AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+              AND ${PURCHASE_EVENT_SQL}
               AND brand_id IS NOT NULL
           )
           AND p.id NOT IN (
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
             WHERE ${USER_MATCH_SQL}
-              AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+              AND ${PURCHASE_EVENT_SQL}
           )
         ORDER BY p.created_at DESC
         LIMIT 5
@@ -169,12 +177,12 @@ export async function getPersonalizedRecommendations(userId) {
           SELECT DISTINCT product_id
           FROM v_chatbot_user_purchase_events
           WHERE ${USER_MATCH_SQL}
-            AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+            AND ${PURCHASE_EVENT_SQL}
         ),
         related_orders AS (
           SELECT DISTINCT order_id
           FROM v_chatbot_user_purchase_events
-          WHERE order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+          WHERE ${PURCHASE_EVENT_SQL}
             AND product_id IN (SELECT product_id FROM user_products)
         )
         SELECT
@@ -185,7 +193,10 @@ export async function getPersonalizedRecommendations(userId) {
           COUNT(*)::INTEGER AS co_buy_count
         FROM v_chatbot_user_purchase_events e
         INNER JOIN v_chatbot_products p ON p.id = e.product_id
-        WHERE e.order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+        WHERE (
+            e.order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+            OR e.payment_status IN (${PURCHASED_PAYMENT_STATUSES_SQL})
+          )
           AND e.order_id IN (SELECT order_id FROM related_orders)
           AND e.product_id NOT IN (SELECT product_id FROM user_products)
           AND p.status = 'ACTIVE'
@@ -203,7 +214,7 @@ export async function getPersonalizedRecommendations(userId) {
           SELECT AVG(unit_price) AS avg_price
           FROM v_chatbot_user_purchase_events
           WHERE ${USER_MATCH_SQL}
-            AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+            AND ${PURCHASE_EVENT_SQL}
         )
         SELECT
           p.id,
@@ -222,7 +233,7 @@ export async function getPersonalizedRecommendations(userId) {
             SELECT DISTINCT product_id
             FROM v_chatbot_user_purchase_events
             WHERE ${USER_MATCH_SQL}
-              AND order_status IN (${PURCHASED_ORDER_STATUSES_SQL})
+              AND ${PURCHASE_EVENT_SQL}
           )
         ORDER BY COALESCE(p.avg_rating, 0) DESC, p.created_at DESC
         LIMIT 5

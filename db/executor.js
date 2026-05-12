@@ -11,15 +11,35 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 5000,
 });
 
+const DEFAULT_QUERY_TIMEOUT_MS = 6000;
+const MIN_QUERY_TIMEOUT_MS = 1000;
+const MAX_QUERY_TIMEOUT_MS = 30000;
+
+function normalizeQueryTimeoutMs(value) {
+  const timeoutMs = Number(value);
+  if (!Number.isFinite(timeoutMs)) return DEFAULT_QUERY_TIMEOUT_MS;
+  return Math.min(
+    Math.max(Math.trunc(timeoutMs), MIN_QUERY_TIMEOUT_MS),
+    MAX_QUERY_TIMEOUT_MS,
+  );
+}
+
 /**
  * Thực thi SQL trong transaction READ ONLY với timeout.
  * Đảm bảo chatbot không thể ghi/xóa dữ liệu.
  */
-export async function runReadOnly(sql, params = [], queryTimeoutMs = 6000) {
+export async function runReadOnly(
+  sql,
+  params = [],
+  queryTimeoutMs = DEFAULT_QUERY_TIMEOUT_MS,
+) {
   const client = await pool.connect();
   try {
+    const safeQueryTimeoutMs = normalizeQueryTimeoutMs(queryTimeoutMs);
     await client.query("BEGIN READ ONLY");
-    await client.query(`SET LOCAL statement_timeout = '${queryTimeoutMs}ms'`);
+    await client.query("SELECT set_config('statement_timeout', $1, true)", [
+      `${safeQueryTimeoutMs}ms`,
+    ]);
 
     const result = await client.query(sql, params);
 
