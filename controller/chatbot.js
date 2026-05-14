@@ -9,6 +9,7 @@ import { CONTRACT } from "../db/contract.js";
 import {
   getRecommendations,
   getPersonalizedRecommendations,
+  getComplementaryRecommendations,
 } from "../prompt/recommendation.js";
 import { buildSystemPrompt } from "../prompt/prompt-system.js";
 import { getConfig } from "../config/config-manager.js";
@@ -36,6 +37,7 @@ const HISTORY_BUDGETS = {
 const SUPPORTED_INTENTS = new Set([
   "compare_products",
   "recommend_products",
+  "complementary_recommendation",
   "product_detail",
   "product_search",
   "variant_search",
@@ -63,6 +65,7 @@ const RESPONSE_SYNTHESIS_INTENTS = new Set([
   "product_search",
   "compare_products",
   "recommend_products",
+  "complementary_recommendation",
   "article_lookup",
 ]);
 
@@ -550,6 +553,13 @@ function normalizeIntent(rawIntent, rawMode) {
     recommend: "recommend_products",
     recommend_products: "recommend_products",
     product_recommendation: "recommend_products",
+    complementary: "complementary_recommendation",
+    complementary_recommendation: "complementary_recommendation",
+    next_purchase: "complementary_recommendation",
+    next_purchase_recommendation: "complementary_recommendation",
+    cross_sell: "complementary_recommendation",
+    cross_sell_recommendation: "complementary_recommendation",
+    related_products: "complementary_recommendation",
     detail: "product_detail",
     product_detail: "product_detail",
     product_search: "product_search",
@@ -690,6 +700,10 @@ function normalizePlannerResult(parsed = {}, shopName) {
     return { intent: "recommend_products", entities };
   }
 
+  if (normalizedIntent === "complementary_recommendation") {
+    return { intent: "complementary_recommendation", entities };
+  }
+
   if (normalizedIntent === "support_handoff") {
     return {
       intent: "support_handoff",
@@ -751,6 +765,24 @@ function buildShortcutResult(userPrompt, shopName) {
   }
 
   return null;
+}
+
+function buildComplementaryShortcutResult(userPrompt) {
+  const normalized = normalizeLooseText(userPrompt);
+  if (!normalized) return null;
+
+  const isComplementaryPrompt =
+    /(muatiep|muakem|muathem|samtiep|samkem|samthem|muacung|dikem|phukien|combo|nenmuagitiep|nenmuagikem|nenmuathem|canmuagitiep|canmuagikem|goiymuatiep|goiymuakem)/.test(
+      normalized,
+    );
+
+  if (!isComplementaryPrompt) return null;
+
+  return {
+    intent: "complementary_recommendation",
+    entities: [],
+    skipLlm: true,
+  };
 }
 
 function logChatbotQuery({ prompt, modelName, provider, historyCount }) {
@@ -1398,7 +1430,12 @@ function getComparisonTerms(planResult, userPrompt) {
 }
 
 function getResponseMode(intent) {
-  return intent === "recommend_products" ? "recommend" : intent === "non_db" ? "non_db" : "db";
+  return intent === "recommend_products" ||
+    intent === "complementary_recommendation"
+    ? "recommend"
+    : intent === "non_db"
+      ? "non_db"
+      : "db";
 }
 
 function hasWhereField(plan, fields = []) {
@@ -1683,7 +1720,70 @@ function formatDateTime(input) {
   return dateValue.toLocaleString("vi-VN");
 }
 
+function buildComplementaryHeader(recommendations) {
+  const source = recommendations?._source || {};
+  if (source.type === "product" && source.productName) {
+    return `Nếu bạn đã mua **${source.productName}**, mình gợi ý thêm các món bổ trợ này:`;
+  }
+  if (source.type === "category" && source.categoryName) {
+    return `Nếu bạn đang mua nhóm **${source.categoryName}**, mình gợi ý thêm các món bổ trợ này:`;
+  }
+  if (source.type === "history" && source.categoryName) {
+    return `Dựa trên lịch sử mua thuộc nhóm **${source.categoryName}**, mình gợi ý các món mua tiếp này:`;
+  }
+  return "Mình gợi ý thêm các món bổ trợ này:";
+}
+
+function formatComplementaryFlashSaleLine(row, index) {
+  const productName =
+    pickFirst(row, ["product_name", "display_name"]) ||
+    MESSAGES.PRODUCT_FALLBACK_NAME;
+  const detailParts = [];
+  if (row.display_name && row.display_name !== productName) {
+    detailParts.push(row.display_name);
+  }
+  if (row.attribute_summary && !detailParts.includes(row.attribute_summary)) {
+    detailParts.push(row.attribute_summary);
+  }
+  const price = formatCurrency(row.flash_price);
+  const end = formatDateTime(row.end_time);
+  return `${index + 1}. **${productName}**${detailParts.length ? ` - ${detailParts.join(" | ")}` : ""}${price ? ` - ${price}` : ""}${row.flash_stock !== undefined ? ` (còn: ${row.flash_stock})` : ""}${end ? ` - hết hạn: ${end}` : ""}`;
+}
+
+function buildComplementaryRecommendationAnswer(recommendations, maxProducts = 3) {
+  const sections = [];
+  const labels = recommendations?._labels || {};
+
+  const pushProductSection = (key, fallbackLabel) => {
+    if (!recommendations?.[key]?.length) return;
+    const lines = recommendations[key]
+      .slice(0, maxProducts)
+      .map((row, index) => formatProductLine(row, index));
+    sections.push(`**${labels[key] || fallbackLabel}**\n${lines.join("\n")}`);
+  };
+
+  pushProductSection("accessories", "Phụ kiện nên mua kèm");
+  pushProductSection("experience", "Thiết bị nâng cấp trải nghiệm");
+
+  if (recommendations?.flashSales?.length) {
+    const lines = recommendations.flashSales
+      .slice(0, maxProducts)
+      .map((row, index) => formatComplementaryFlashSaleLine(row, index));
+    sections.push(`**${labels.flashSales || "Đang có ưu đãi"}**\n${lines.join("\n")}`);
+  }
+
+  if (!sections.length) {
+    return MESSAGES.RECOMMEND_EMPTY;
+  }
+
+  return `${buildComplementaryHeader(recommendations)}\n\n${sections.join("\n\n")}`;
+}
+
 function buildRecommendationAnswer(recommendations, maxProducts = 3) {
+  if (recommendations?._complementary === true) {
+    return buildComplementaryRecommendationAnswer(recommendations, maxProducts);
+  }
+
   const sections = [];
   const isPersonalized = recommendations?._personalized === true;
   const labels = recommendations?._labels || {};
@@ -1821,12 +1921,14 @@ function buildRecommendationSectionsForContext(recommendations, maxProducts = 3)
   pushProductSection("sameBrand", "Thương hiệu bạn yêu thích");
   pushProductSection("coPurchase", "Khách hàng cũng thường mua");
   pushProductSection("budgetMatch", "Phù hợp ngân sách của bạn");
+  pushProductSection("accessories", "Phụ kiện nên mua kèm");
+  pushProductSection("experience", "Thiết bị nâng cấp trải nghiệm");
   pushProductSection("featured", MESSAGES.SECTION_FEATURED);
   pushProductSection("topRated", MESSAGES.SECTION_TOP_RATED);
 
   if (recommendations?.flashSales?.length) {
     sections.push({
-      label: MESSAGES.SECTION_FLASH_SALE,
+      label: labels.flashSales || MESSAGES.SECTION_FLASH_SALE,
       items: recommendations.flashSales
         .slice(0, maxProducts)
         .map((row) => summarizeFlashSaleForContext(row)),
@@ -1878,9 +1980,15 @@ function buildSafeContext(intent, payload = {}) {
     };
   }
 
-  if (intent === "recommend_products" && payload.recommendations) {
+  if (
+    (intent === "recommend_products" ||
+      intent === "complementary_recommendation") &&
+    payload.recommendations
+  ) {
     return {
-      type: "recommend_products",
+      type: intent,
+      source: payload.recommendations?._source || null,
+      complementary: payload.recommendations?._complementary === true,
       personalized: payload.recommendations?._personalized === true,
       sections: buildRecommendationSectionsForContext(
         payload.recommendations,
@@ -1994,7 +2102,9 @@ export const chatbot = async (req, res) => {
 
     const plannerHistory = trimChatHistory(rawHistory, HISTORY_BUDGETS.planner);
     const replyHistory = trimChatHistory(rawHistory, HISTORY_BUDGETS.reply);
-    const shortcut = buildShortcutResult(userPrompt, getShopName(appConfig));
+    const shortcut =
+      buildShortcutResult(userPrompt, getShopName(appConfig)) ||
+      buildComplementaryShortcutResult(userPrompt);
     const planResult =
       shortcut || (await generateIntentPlan(userPrompt, plannerHistory, runtime));
     const { intent, plan, message, skipLlm } = planResult;
@@ -2039,6 +2149,37 @@ export const chatbot = async (req, res) => {
       const recommendations = userId
         ? await getPersonalizedRecommendations(userId)
         : await getRecommendations();
+      const draftAnswer = buildRecommendationAnswer(
+        recommendations,
+        runtime.maxProducts,
+      );
+      const synthesis = await maybeSynthesizeAnswer({
+        appConfig,
+        runtime,
+        intent,
+        question: userPrompt,
+        draftAnswer,
+        safeContext: buildSafeContext(intent, {
+          recommendations,
+          maxProducts: runtime.maxProducts,
+        }),
+      });
+
+      return res.status(200).json({
+        answer: synthesis.answer,
+        mode: responseMode,
+        data: recommendations,
+      });
+    }
+
+    if (intent === "complementary_recommendation") {
+      const recommendations = await getComplementaryRecommendations({
+        userId: req.userId || null,
+        prompt: userPrompt,
+        entities: planResult.entities || [],
+        maxProducts: runtime.maxProducts,
+        queryTimeoutMs: runtime.dbTimeoutMs,
+      });
       const draftAnswer = buildRecommendationAnswer(
         recommendations,
         runtime.maxProducts,

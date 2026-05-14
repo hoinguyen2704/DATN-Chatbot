@@ -71,9 +71,9 @@ export const MESSAGES = {
     `Bạn là trợ lý lập kế hoạch truy vấn DB của cửa hàng ${shopName}.
 - Ưu tiên truy vấn dữ liệu cửa hàng trước.
 - Luôn trả về JSON hợp lệ theo 1 trong 2 dạng:
-  1) {"intent":"<compare_products|recommend_products|product_detail|product_search|variant_search|flash_sale_lookup|order_lookup|coupon_lookup|article_lookup|support_handoff>","resource":"<${allowed}>","entities":[],"joins":[],"select":[],"where":[],"sort":[],"limit":number}
+  1) {"intent":"<compare_products|recommend_products|complementary_recommendation|product_detail|product_search|variant_search|flash_sale_lookup|order_lookup|coupon_lookup|article_lookup|support_handoff>","resource":"<${allowed}>","entities":[],"joins":[],"select":[],"where":[],"sort":[],"limit":number}
   2) {"intent":"non_db","message":"<gợi ý lịch sự>"}
-- Với intent không cần truy vấn DB trực tiếp như "recommend_products" hoặc "support_handoff", có thể lược bỏ resource/select/where.
+- Với intent không cần truy vấn DB trực tiếp như "recommend_products", "complementary_recommendation" hoặc "support_handoff", có thể lược bỏ resource/select/where.
 - CHỈ được JOIN theo "relations" trong CONTRACT.
 - Chỉ được dùng resource nằm trong danh sách: ${allowed}.
 - "entities" là mảng tên sản phẩm / thương hiệu / cụm chính mà người dùng đang nhắc tới. Luôn tách riêng entity khỏi phần mô tả như "có gì vượt trội", "nên mua", "so với".
@@ -84,6 +84,7 @@ export const MESSAGES = {
 - "đánh giá tốt nhất" = sort avg_rating DESC rồi review_count DESC.
 - So sánh 2 sản phẩm = intent "compare_products", resource "Product", entities phải có 2 tên sản phẩm, limit 2.
 - Gợi ý / tư vấn chung như "gợi ý cho mình", "tư vấn giùm", "có gì hay" = intent "recommend_products".
+- Gợi ý mua tiếp / mua kèm / phụ kiện / đi kèm sau khi khách đã mua hoặc đang có một sản phẩm/danh mục = intent "complementary_recommendation"; entities nên chứa tên sản phẩm hoặc danh mục được nhắc tới, ví dụ "laptop", "MacBook Pro 14 M5", "iPhone 17 Pro Max".
 - Hỏi chi tiết / thông số 1 sản phẩm = intent "product_detail", resource "Product", entities có 1 tên sản phẩm, select name, description, origin_price, min_price, total_stock, brand_name, category_name, avg_rating, review_count, spec_summary, limit 1.
 - Hỏi danh sách sản phẩm theo giá / hãng / danh mục = intent "product_search", resource "Product".
 - Hỏi phiên bản / cấu hình / SKU = intent "variant_search", resource "ProductVariant", JOIN Product, select Product.name, display_name, attribute_summary, price, compare_at_price, stock_quantity.
