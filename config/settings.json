@@ -1,11 +1,11 @@
 {
   "shopInfo": {
-    "name": "Hozitech",
+    "name": "Htech",
     "slogan": "Cửa hàng công nghệ",
     "address": "Hà Nội",
     "hotline": "0828443833",
     "email": "hozinium@gmail.com",
-    "website": "https://hozitech.com",
+    "website": "https://htech.com",
     "payments": [
       "COD",
       "VNPay",
@@ -14,9 +14,9 @@
     ]
   },
   "bot": {
-    "name": "Hozitech AI",
+    "name": "Htech AI",
     "subtitle": "Trợ lý tư vấn sản phẩm 24/7",
-    "welcomeMessage": "Xin chào! Tôi là trợ lý AI của Hozitech\n\nTôi có thể giúp bạn:\n- 🔍 Tìm kiếm và tư vấn sản phẩm công nghệ\n- 💰 Xem giá, flash sale và voucher public\n- ⭐ So sánh sản phẩm và cấu hình\n- 📦 Tra cứu đơn hàng sau khi bạn đăng nhập\n\nBạn cần hỗ trợ gì ạ?",
+    "welcomeMessage": "Xin chào! Tôi là trợ lý AI của Htech\n\nTôi có thể giúp bạn:\n- 🔍 Tìm kiếm và tư vấn sản phẩm công nghệ\n- 💰 Xem giá, flash sale và voucher public\n- ⭐ So sánh sản phẩm và cấu hình\n- 📦 Tra cứu đơn hàng sau khi bạn đăng nhập\n\nBạn cần hỗ trợ gì ạ?",
     "themeColor": "#fd8bf4",
     "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=TechStore"
   },

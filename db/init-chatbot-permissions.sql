@@ -1,5 +1,5 @@
 -- ============================================================
--- Hozitech Chatbot — Quyền hạn Database (PostgreSQL)
+-- Htech Chatbot — Quyền hạn Database (PostgreSQL)
 -- Chạy script này bằng tài khoản superadmin/postgres
 -- ============================================================
 

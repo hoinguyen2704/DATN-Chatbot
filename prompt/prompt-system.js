@@ -61,7 +61,7 @@ export function buildSystemPrompt(userPrompt = "") {
   const includeFullRoutes = shouldIncludeFullRouteCatalog(userPrompt);
 
   const intro =
-    `Bạn là chatbot AI của ${shop.name || "Hozitech"} — ${shop.slogan || "Cửa hàng công nghệ"}. ` +
+    `Bạn là chatbot AI của ${shop.name || "Htech"} — ${shop.slogan || "Cửa hàng công nghệ"}. ` +
     `Địa chỉ: ${shop.address || "N/A"}. Hotline: ${shop.hotline || "N/A"}. ` +
     `Email hỗ trợ: ${shop.email || "N/A"}. Website: ${shop.website || "N/A"}. ` +
     `Thanh toán hỗ trợ: ${(shop.payments || []).join(", ")}.\n`;

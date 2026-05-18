@@ -184,9 +184,9 @@ function getModelName(config) {
 function getEnvProvider() {
   const provider = String(
     process.env.CHATBOT_AI_PROVIDER ||
-      process.env.AI_PROVIDER ||
-      process.env.LLM_PROVIDER ||
-      "",
+    process.env.AI_PROVIDER ||
+    process.env.LLM_PROVIDER ||
+    "",
   )
     .trim()
     .toLowerCase();
@@ -245,7 +245,7 @@ function getGeminiFallbackModels() {
 }
 
 function getShopName(config) {
-  return config?.shopInfo?.name || "Hozitech";
+  return config?.shopInfo?.name || "Htech";
 }
 
 function withTimeout(promise, timeoutMs, errorMessage = "GEMINI_TIMEOUT") {
