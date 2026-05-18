@@ -1,10 +1,10 @@
-# Hozitech Chatbot
+# Htech Chatbot
 
-Service chatbot AI riêng cho Hozitech. Đây là backend độc lập với server Spring Boot, dùng Express + PostgreSQL + OpenAI/Gemini.
+Service chatbot AI riêng cho Htech. Đây là backend độc lập với server Spring Boot, dùng Express + PostgreSQL + OpenAI/Gemini.
 
 ## Tổng Quan
 
-- Chat public cho website Hozitech
+- Chat public cho website Htech
 - Tra cứu sản phẩm, flash sale, voucher public, đơn hàng khi đã đăng nhập
 - Admin API để chỉnh cấu hình bot/widget/model
 - Dùng read-model DB để trả lời nhanh và đúng dữ liệu
