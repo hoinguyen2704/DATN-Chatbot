@@ -57,7 +57,6 @@ function shouldIncludeFullRouteCatalog(userPrompt = "") {
 export function buildSystemPrompt(userPrompt = "") {
   const config = getConfig();
   const shop = config.shopInfo || {};
-  const rules = config.ai?.systemRules || "";
   const includeFullRoutes = shouldIncludeFullRouteCatalog(userPrompt);
 
   const intro =
@@ -66,7 +65,14 @@ export function buildSystemPrompt(userPrompt = "") {
     `Email hỗ trợ: ${shop.email || "N/A"}. Website: ${shop.website || "N/A"}. ` +
     `Thanh toán hỗ trợ: ${(shop.payments || []).join(", ")}.\n`;
 
-  return [intro, SHORT_FRONTEND_ROUTES, includeFullRoutes ? FULL_FRONTEND_ROUTES : "", rules]
+  const behavior = `
+QUY TẮC TRẢ LỜI:
+- Trả lời bằng tiếng Việt, ngắn gọn, thân thiện, đúng trọng tâm.
+- Chỉ trả lời thông tin chung về cửa hàng, điều hướng trang, đăng nhập, đơn hàng, voucher, hỗ trợ hoặc cách sử dụng website.
+- Nếu câu hỏi cần dữ liệu sản phẩm, giá, tồn kho, voucher hoặc đơn hàng cụ thể, không bịa dữ liệu; hãy hướng người dùng hỏi lại rõ hơn để hệ thống tra cứu dữ liệu.
+`;
+
+  return [intro, SHORT_FRONTEND_ROUTES, includeFullRoutes ? FULL_FRONTEND_ROUTES : "", behavior]
     .filter(Boolean)
     .join("\n");
 }

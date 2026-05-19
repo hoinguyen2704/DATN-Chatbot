@@ -1,6 +1,7 @@
 -- Chatbot read models backed by the normalized product schema.
 -- Safe to run multiple times on PostgreSQL.
 
+DROP VIEW IF EXISTS v_chatbot_products CASCADE;
 CREATE OR REPLACE VIEW v_chatbot_products AS
 WITH variant_stats AS (
   SELECT
@@ -79,6 +80,7 @@ LEFT JOIN feedback_stats fs ON fs.product_id = p.id
 LEFT JOIN spec_summary ss ON ss.product_id = p.id
 LEFT JOIN main_images mi ON mi.product_id = p.id;
 
+DROP VIEW IF EXISTS v_chatbot_product_variants CASCADE;
 CREATE OR REPLACE VIEW v_chatbot_product_variants AS
 WITH attribute_summary AS (
   SELECT
@@ -126,6 +128,7 @@ LEFT JOIN categories c ON c.id = p.category_id
 LEFT JOIN brands b ON b.id = p.brand_id
 LEFT JOIN attribute_summary attr ON attr.product_variant_id = pv.id;
 
+DROP VIEW IF EXISTS v_chatbot_flash_sale_items CASCADE;
 CREATE OR REPLACE VIEW v_chatbot_flash_sale_items AS
 SELECT
   f.id AS flash_sale_id,
@@ -148,6 +151,7 @@ FROM flash_sales f
 INNER JOIN flash_sale_items fi ON fi.flash_sale_id = f.id
 INNER JOIN v_chatbot_product_variants cv ON cv.id = fi.variant_id;
 
+DROP VIEW IF EXISTS v_chatbot_user_purchase_events CASCADE;
 CREATE OR REPLACE VIEW v_chatbot_user_purchase_events AS
 SELECT
   o.user_id,
@@ -177,6 +181,7 @@ INNER JOIN products p ON p.id = pv.product_id
 LEFT JOIN categories c ON c.id = p.category_id
 LEFT JOIN brands b ON b.id = p.brand_id;
 
+DROP VIEW IF EXISTS v_chatbot_orders CASCADE;
 CREATE OR REPLACE VIEW v_chatbot_orders AS
 WITH order_item_summary AS (
   SELECT

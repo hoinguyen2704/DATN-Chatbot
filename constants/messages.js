@@ -54,8 +54,10 @@ export const MESSAGES = {
     "Dữ liệu chatbot đang được đồng bộ lại sau khi cập nhật hệ thống. Bạn vui lòng thử lại sau ít phút.",
 
   /*  Response synthesis  */
-  SYNTHESIS_SYSTEM: (shopName, intent) =>
-    `Bạn là biên tập viên trả lời khách hàng cho ${shopName}.
+  SYNTHESIS_SYSTEM: (shopName, intent, responseRules = "") => {
+    const customRules = String(responseRules || "").trim();
+
+    return `Bạn là biên tập viên trả lời khách hàng cho ${shopName}.
 - Nhiệm vụ của bạn là diễn đạt lại câu trả lời từ dữ liệu đã được backend truy vấn an toàn.
 - Chỉ dùng thông tin xuất hiện trong SAFE_CONTEXT hoặc TRUSTED_DRAFT_ANSWER.
 - Không được bịa thêm giá, tồn kho, thông số, điều kiện voucher, trạng thái đơn hàng, thời gian hay so sánh ngoài dữ liệu đã cho.
@@ -64,7 +66,8 @@ export const MESSAGES = {
 - Có thể viết lại câu cho dễ đọc hơn, nhưng không làm thay đổi fact.
 - Nếu TRUSTED_DRAFT_ANSWER đã đủ tốt, chỉ tinh chỉnh nhẹ.
 - Không dùng bảng Markdown.
-- Intent hiện tại: "${intent}".`,
+- Intent hiện tại: "${intent}".${customRules ? `\n\nQUY TẮC TRẢ LỜI DO ADMIN CẤU HÌNH:\n${customRules}` : ""}`;
+  },
 
   /*  Planner system instruction  */
   PLAN_SYSTEM: (shopName, schemaText, fewShot, allowed) =>
@@ -79,11 +82,14 @@ export const MESSAGES = {
 - "entities" là mảng tên sản phẩm / thương hiệu / cụm chính mà người dùng đang nhắc tới. Luôn tách riêng entity khỏi phần mô tả như "có gì vượt trội", "nên mua", "so với".
 - Nếu người dùng đưa mã đơn hàng, giữ nguyên mã "ORD-..." trong "entities" hoặc filter "order_number".
 - Resource Product đã có sẵn các field: min_price, max_price, total_stock, avg_rating, review_count, brand_name, category_name, spec_summary.
-- Nếu câu hỏi nhắc tên danh mục khi resource=Product, thêm joins:[{"resource":"Category"}] và lọc "Category.name".
-- Nếu câu hỏi nhắc tên thương hiệu, thêm joins:[{"resource":"Brand"}] và lọc "Brand.name".
+- Danh mục hợp lệ gồm: Điện thoại, Laptop, Máy tính bảng, Tai nghe, Loa, Bàn phím, Chuột, Màn hình. Nếu câu hỏi nhắc danh mục khi resource=Product, lọc "category_name" theo đúng danh mục đó.
+- Thương hiệu hợp lệ gồm: Samsung, Honor, Xiaomi, Nothing, Tecno, Apple, OPPO, Lenovo, ASUS, Dell, Acer, MSI, HP, Khác, Sony, JBL, HyperX, Marshall, Harman Kardon, Logitech, LG, samsung1. Nếu câu hỏi nhắc thương hiệu, lọc "brand_name"; không đưa thương hiệu vào filter "name" trừ khi nó là một phần tên model cụ thể.
+- Các từ mô tả nhu cầu như "sang", "rẻ", "tiết kiệm", "ngân sách", "vừa" không phải tên sản phẩm; không được đưa các từ này vào filter "name".
 - "đánh giá tốt nhất" = sort avg_rating DESC rồi review_count DESC.
 - So sánh 2 sản phẩm = intent "compare_products", resource "Product", entities phải có 2 tên sản phẩm, limit 2.
-- Gợi ý / tư vấn chung như "gợi ý cho mình", "tư vấn giùm", "có gì hay" = intent "recommend_products".
+- Khi người dùng nêu 2 sản phẩm và hỏi cái nào tối ưu/tốt hơn/mạnh hơn/hiệu năng/camera/pin/cấu hình/giá/giá tiền, luôn dùng intent "compare_products"; entities chỉ gồm đúng 2 tên sản phẩm, bỏ phần câu hỏi như "thì chiếc nào tối ưu hơn về hiệu năng".
+- Gợi ý / tư vấn chung không nêu rõ danh mục hoặc ngân sách như "gợi ý cho mình", "tư vấn giùm", "có gì hay" = intent "recommend_products".
+- Gợi ý / tư vấn có danh mục hoặc mức giá cụ thể như "nên mua điện thoại nào với 17 triệu", "gợi ý laptop dưới 20 triệu" = intent "product_search", resource "Product", phải thêm filter category_name/name và min_price phù hợp.
 - Gợi ý mua tiếp / mua kèm / phụ kiện / đi kèm sau khi khách đã mua hoặc đang có một sản phẩm/danh mục = intent "complementary_recommendation"; entities nên chứa tên sản phẩm hoặc danh mục được nhắc tới, ví dụ "laptop", "MacBook Pro 14 M5", "iPhone 17 Pro Max".
 - Hỏi chi tiết / thông số 1 sản phẩm = intent "product_detail", resource "Product", entities có 1 tên sản phẩm, select name, description, origin_price, min_price, total_stock, brand_name, category_name, avg_rating, review_count, spec_summary, limit 1.
 - Hỏi danh sách sản phẩm theo giá / hãng / danh mục = intent "product_search", resource "Product".

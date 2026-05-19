@@ -23,14 +23,14 @@ const OPENAI_FALLBACK_MODEL = "gpt-5.4-mini";
 
 const HISTORY_BUDGETS = {
   planner: {
-    maxMessages: 4,
-    maxCharsPerMessage: 200,
-    maxTotalChars: 800,
+    maxMessages: 8,
+    maxCharsPerMessage: 420,
+    maxTotalChars: 2600,
   },
   reply: {
-    maxMessages: 6,
-    maxCharsPerMessage: 280,
-    maxTotalChars: 1400,
+    maxMessages: 10,
+    maxCharsPerMessage: 520,
+    maxTotalChars: 4200,
   },
 };
 
@@ -70,20 +70,67 @@ const RESPONSE_SYNTHESIS_INTENTS = new Set([
 ]);
 
 const CATEGORY_HINTS = [
-  { match: "dienthoai", value: "điện thoại" },
-  { match: "laptop", value: "laptop" },
-  { match: "maytinhbang", value: "máy tính bảng" },
-  { match: "tablet", value: "tablet" },
-  { match: "manhinh", value: "màn hình" },
-  { match: "tainghe", value: "tai nghe" },
-  { match: "chuot", value: "chuột" },
-  { match: "banphim", value: "bàn phím" },
-  { match: "dongho", value: "đồng hồ" },
-  { match: "loa", value: "loa" },
+  {
+    value: "điện thoại",
+    keys: ["điện thoại", "dien thoai", "dien-thoai", "dienthoai", "smartphone", "phone"],
+  },
+  {
+    value: "laptop",
+    keys: ["laptop", "notebook", "máy tính xách tay", "may tinh xach tay"],
+  },
+  {
+    value: "máy tính bảng",
+    keys: ["máy tính bảng", "may tinh bang", "may-tinh-bang", "maytinhbang", "tablet"],
+  },
+  {
+    value: "tai nghe",
+    keys: ["tai nghe", "tai-nghe", "tainghe", "headphone", "headset", "earbuds"],
+  },
+  {
+    value: "loa",
+    keys: ["loa", "speaker"],
+  },
+  {
+    value: "bàn phím",
+    keys: ["bàn phím", "ban phim", "ban-phim", "banphim", "keyboard"],
+  },
+  {
+    value: "chuột",
+    keys: ["chuột", "chuot", "mouse"],
+  },
+  {
+    value: "màn hình",
+    keys: ["màn hình", "man hinh", "man-hinh", "manhinh", "monitor", "display"],
+  },
+];
+
+const BRAND_HINTS = [
+  { value: "Harman Kardon", keys: ["Harman Kardon", "harman-kardon", "harmankardon"] },
+  { value: "Samsung", keys: ["Samsung", "samsung"] },
+  { value: "Honor", keys: ["Honor", "honor"] },
+  { value: "Xiaomi", keys: ["Xiaomi", "xiaomi"] },
+  { value: "Nothing", keys: ["Nothing", "nothing"] },
+  { value: "Tecno", keys: ["Tecno", "tecno"] },
+  { value: "Apple", keys: ["Apple", "apple"] },
+  { value: "OPPO", keys: ["OPPO", "oppo"] },
+  { value: "Lenovo", keys: ["Lenovo", "lenovo"] },
+  { value: "ASUS", keys: ["ASUS", "asus"] },
+  { value: "Dell", keys: ["Dell", "dell"] },
+  { value: "Acer", keys: ["Acer", "acer"] },
+  { value: "MSI", keys: ["MSI", "msi"] },
+  { value: "HP", keys: ["HP", "hp"] },
+  { value: "Khác", keys: ["Khác", "khac"] },
+  { value: "Sony", keys: ["Sony", "sony"] },
+  { value: "JBL", keys: ["JBL", "jbl"] },
+  { value: "HyperX", keys: ["HyperX", "hyperx"] },
+  { value: "Marshall", keys: ["Marshall", "marshall"] },
+  { value: "Logitech", keys: ["Logitech", "logitech"] },
+  { value: "LG", keys: ["LG", "lg"] },
+  { value: "samsung1", keys: ["samsung1"] },
 ];
 
 const COMPARISON_INTENT_PATTERN =
-  /(so sánh|so với|\bvs\.?\b|nên mua|nên chọn|chọn giữa|khác nhau|đáng mua hơn|tốt hơn)/i;
+  /(so sánh|so với|\bvs\.?\b|nên mua|nên chọn|chọn giữa|khác nhau|đáng mua hơn|tốt hơn|tot hon|tối ưu hơn|toi uu hon|hiệu năng|hieu nang|mạnh hơn|manh hon|giá tiền|gia tien|giá|gia)/i;
 const COMPARISON_SPLITTERS = [
   /\s+so với\s+/i,
   /\s+\bvs\.?\b\s+/i,
@@ -92,6 +139,142 @@ const COMPARISON_SPLITTERS = [
   /\s+và\s+/i,
 ];
 const ORDER_NUMBER_PATTERN = /\bORD-[A-Z0-9-]+\b/i;
+const PRODUCT_ANALYSIS_PATTERN =
+  /(sosanh|sovoi|toiuu|hieunang|manhhon|totnhat|tothon|dangmuahon|camera|pin|cauhinh|chip|cpu|gpu|ram|manh|choigame|gaming)/;
+const PRODUCT_RECOMMENDATION_SEARCH_PATTERN =
+  /(goiy|tuvan|nenmua|nenchon|dangmua|chonmua|muachiec|muacon|muacai|maunao|spnao|sanphamnao|loainao|cainao)/;
+const PRODUCT_LOOKUP_PATTERN = /(co|tim|xem|lietke|loc).*(nao|gi)/;
+const PRODUCT_LINE_HINTS = [
+  {
+    value: "iphone",
+    keys: ["iphone"],
+    categoryHint: "điện thoại",
+    brandHints: ["Apple"],
+  },
+  {
+    value: "ipad",
+    keys: ["ipad"],
+    categoryHint: "máy tính bảng",
+    brandHints: ["Apple"],
+  },
+  {
+    value: "macbook",
+    keys: ["macbook"],
+    categoryHint: "laptop",
+    brandHints: ["Apple"],
+  },
+  {
+    value: "airpods",
+    keys: ["airpods"],
+    categoryHint: "tai nghe",
+    brandHints: ["Apple"],
+  },
+  {
+    value: "galaxy",
+    keys: ["galaxy"],
+    categoryHint: "điện thoại",
+    brandHints: ["Samsung"],
+  },
+  {
+    value: "redmi",
+    keys: ["redmi"],
+    categoryHint: "điện thoại",
+    brandHints: ["Xiaomi"],
+  },
+  {
+    value: "pova",
+    keys: ["pova"],
+    categoryHint: "điện thoại",
+    brandHints: ["Tecno"],
+  },
+  {
+    value: "reno",
+    keys: ["reno"],
+    categoryHint: "điện thoại",
+    brandHints: ["OPPO"],
+  },
+  {
+    value: "find",
+    keys: ["find"],
+    categoryHint: "điện thoại",
+    brandHints: ["OPPO"],
+  },
+  {
+    value: "thinkpad",
+    keys: ["thinkpad"],
+    categoryHint: "laptop",
+    brandHints: ["Lenovo"],
+  },
+  {
+    value: "ideapad",
+    keys: ["ideapad"],
+    categoryHint: "laptop",
+    brandHints: ["Lenovo"],
+  },
+  {
+    value: "vivobook",
+    keys: ["vivobook"],
+    categoryHint: "laptop",
+    brandHints: ["ASUS"],
+  },
+  {
+    value: "zenbook",
+    keys: ["zenbook"],
+    categoryHint: "laptop",
+    brandHints: ["ASUS"],
+  },
+  { value: "legion", keys: ["legion"], brandHints: ["Lenovo"] },
+  {
+    value: "aspire",
+    keys: ["aspire"],
+    categoryHint: "laptop",
+    brandHints: ["Acer"],
+  },
+  {
+    value: "modern",
+    keys: ["modern"],
+    categoryHint: "laptop",
+    brandHints: ["MSI"],
+  },
+  {
+    value: "ultragear",
+    keys: ["ultragear", "ultra gear"],
+    categoryHint: "màn hình",
+    brandHints: ["LG"],
+  },
+  {
+    value: "cloud",
+    keys: ["cloud"],
+    categoryHint: "tai nghe",
+    brandHints: ["HyperX"],
+  },
+  {
+    value: "stinger",
+    keys: ["stinger"],
+    categoryHint: "tai nghe",
+    brandHints: ["HyperX"],
+  },
+  {
+    value: "onyx",
+    keys: ["onyx"],
+    categoryHint: "loa",
+    brandHints: ["JBL"],
+  },
+  {
+    value: "aura",
+    keys: ["aura"],
+    categoryHint: "loa",
+    brandHints: ["Harman Kardon"],
+  },
+  {
+    value: "go play",
+    keys: ["go play", "go + play"],
+    categoryHint: "loa",
+    brandHints: ["Harman Kardon"],
+  },
+  { value: "pebble", keys: ["pebble"], brandHints: ["Logitech"] },
+  { value: "lightspeed", keys: ["lightspeed"], brandHints: ["Logitech"] },
+];
 
 const ORDER_STATUS_LABELS = {
   PENDING: "chờ xác nhận",
@@ -121,8 +304,9 @@ function cleanupComparisonTerm(term = "") {
       /\s+(?:và|va)\s+(?:cho|giúp|giup|nói|noi|kèm|kem)\b.*$/i,
       "",
     )
+    .replace(/[\s,;:]+(?:thì|thi)(?:\s|$).*$/i, "")
     .replace(
-      /\b(cái nào|mẫu nào|con nào|ưu nhược điểm|ưu điểm|nhược điểm|tốt hơn|ổn hơn|đáng mua hơn|nên mua cái nào|nên chọn cái nào|khác nhau chỗ nào|thì sao)\b.*$/i,
+      /\b(cái nào|mẫu nào|con nào|chiếc nào|ưu nhược điểm|ưu điểm|nhược điểm|tốt hơn|ổn hơn|tối ưu hơn|mạnh hơn|hiệu năng|đáng mua hơn|nên mua cái nào|nên chọn cái nào|khác nhau chỗ nào|thì sao)\b.*$/i,
       "",
     )
     .replace(
@@ -152,7 +336,7 @@ function extractComparisonTerms(userPrompt = "") {
     const parts = working
       .split(splitter, 2)
       .map((part) => cleanupComparisonTerm(part))
-      .filter(Boolean);
+      .filter((part) => part && !extractBudgetConstraint(part));
     const uniqueParts = [...new Set(parts)];
     if (uniqueParts.length >= 2) {
       return uniqueParts.slice(0, 2);
@@ -160,6 +344,453 @@ function extractComparisonTerms(userPrompt = "") {
   }
 
   return [];
+}
+
+function normalizeTextForMoney(input = "") {
+  return String(input || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9.,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseMoneyNumber(rawValue = "") {
+  const cleaned = String(rawValue || "").replace(/\./g, "").replace(",", ".");
+  const value = Number(cleaned);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function moneyMultiplier(unit = "") {
+  const normalized = String(unit || "").toLowerCase();
+  if (["ty", "ti", "b"].includes(normalized)) return 1_000_000_000;
+  if (["trieu", "tr", "m"].includes(normalized)) return 1_000_000;
+  if (["nghin", "ngan", "k"].includes(normalized)) return 1_000;
+  return null;
+}
+
+function toMoneyAmount(rawValue, unit) {
+  const numberValue = parseMoneyNumber(rawValue);
+  const multiplier = moneyMultiplier(unit);
+  if (numberValue === null || !multiplier) return null;
+  return Math.round(numberValue * multiplier);
+}
+
+function extractBudgetConstraint(userPrompt = "") {
+  const text = normalizeTextForMoney(userPrompt);
+  if (!text) return null;
+
+  const rangeMatch = text.match(
+    /\btu\s+(\d+(?:[.,]\d+)?)\s*(ty|ti|trieu|tr|m|nghin|ngan|k)?\s+(?:den|toi|-)\s+(\d+(?:[.,]\d+)?)\s*(ty|ti|trieu|tr|m|nghin|ngan|k)\b/,
+  );
+  if (rangeMatch) {
+    const minUnit = rangeMatch[2] || rangeMatch[4];
+    const minPrice = toMoneyAmount(rangeMatch[1], minUnit);
+    const maxPrice = toMoneyAmount(rangeMatch[3], rangeMatch[4]);
+    if (minPrice !== null || maxPrice !== null) {
+      return { minPrice, maxPrice };
+    }
+  }
+
+  const amountMatch = text.match(
+    /\b(\d+(?:[.,]\d+)?)\s*(ty|ti|trieu|tr|m|nghin|ngan|k)\b/,
+  );
+  if (!amountMatch) return null;
+
+  const amount = toMoneyAmount(amountMatch[1], amountMatch[2]);
+  if (amount === null) return null;
+
+  const before = text.slice(0, amountMatch.index).trim().split(/\s+/).slice(-5).join(" ");
+  const after = text.slice(amountMatch.index + amountMatch[0].length).trim().split(/\s+/).slice(0, 5).join(" ");
+
+  if (/(tu|tren|hon|lon hon|cao hon)$/.test(before)) {
+    return { minPrice: amount, maxPrice: null };
+  }
+
+  if (/^(tro len|do len)/.test(after)) {
+    return { minPrice: amount, maxPrice: null };
+  }
+
+  return { minPrice: null, maxPrice: amount };
+}
+
+function inferMoneyMultiplierFromReferenceBudget(budgetConstraint) {
+  const normalizedBudget = normalizeBudgetConstraint(budgetConstraint);
+  const referenceAmount =
+    normalizedBudget?.maxPrice ?? normalizedBudget?.minPrice ?? null;
+  if (!referenceAmount) return null;
+
+  if (referenceAmount >= 1_000_000_000 && referenceAmount % 1_000_000_000 === 0) {
+    return 1_000_000_000;
+  }
+  if (referenceAmount >= 1_000_000 && referenceAmount % 1_000_000 === 0) {
+    return 1_000_000;
+  }
+  if (referenceAmount >= 1_000 && referenceAmount % 1_000 === 0) {
+    return 1_000;
+  }
+
+  return null;
+}
+
+function extractUnitlessBudgetConstraint(userPrompt = "", referenceContext = {}) {
+  const text = normalizeTextForMoney(userPrompt);
+  if (!text) return null;
+
+  const referenceBudget = normalizeBudgetConstraint(
+    referenceContext?.budgetConstraint,
+  );
+  const multiplier = inferMoneyMultiplierFromReferenceBudget(referenceBudget);
+  if (!multiplier) return null;
+
+  const hasPriceCue =
+    /\b(duoi|tren|hon|lon hon|cao hon|thap hon|re hon|dat hon|tam gia|khoang gia|gia)\b/.test(
+      text,
+    );
+  if (!hasPriceCue) return null;
+
+  const amountMatch = text.match(/\b(\d+(?:[.,]\d+)?)\b/);
+  if (!amountMatch) return null;
+
+  const numberValue = parseMoneyNumber(amountMatch[1]);
+  if (numberValue === null) return null;
+
+  const amount = Math.round(numberValue * multiplier);
+  const before = text.slice(0, amountMatch.index).trim().split(/\s+/).slice(-5).join(" ");
+  const after = text.slice(amountMatch.index + amountMatch[0].length).trim().split(/\s+/).slice(0, 5).join(" ");
+
+  if (/(tu|tren|hon|lon hon|cao hon|dat hon)$/.test(before)) {
+    return { minPrice: amount, maxPrice: null };
+  }
+
+  if (/^(tro len|do len|tro xuong|do xuong)/.test(after)) {
+    return /^(tro len|do len)/.test(after)
+      ? { minPrice: amount, maxPrice: null }
+      : { minPrice: null, maxPrice: amount };
+  }
+
+  if (/(duoi|thap hon|re hon)$/.test(before)) {
+    return { minPrice: null, maxPrice: amount };
+  }
+
+  if (/\b(tam gia|khoang gia|gia)\b/.test(text)) {
+    return { minPrice: null, maxPrice: amount };
+  }
+
+  return null;
+}
+
+function stripMoneyExpressions(text = "") {
+  return String(text || "")
+    .replace(
+      /\btu\s+\d+(?:[.,]\d+)?\s*(?:ty|ti|trieu|tr|m|nghin|ngan|k)?\s+(?:den|toi|-)\s+\d+(?:[.,]\d+)?\s*(?:ty|ti|trieu|tr|m|nghin|ngan|k)\b/g,
+      " ",
+    )
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:ty|ti|trieu|tr|m|nghin|ngan|k)\b/g, " ");
+}
+
+function normalizeHintKey(key = "") {
+  return normalizeTextForMoney(key);
+}
+
+function hintKeys(hint = {}) {
+  return Array.isArray(hint.keys) && hint.keys.length ? hint.keys : [hint.match];
+}
+
+function textMatchesCategoryHint(term = "", hint = {}) {
+  const normalizedTerm = normalizeLooseText(term);
+  if (!normalizedTerm) return false;
+
+  return hintKeys(hint).some((key) => {
+    const normalizedKey = normalizeLooseText(key);
+    return (
+      normalizedKey &&
+      (normalizedTerm.includes(normalizedKey) ||
+        (normalizedKey.length >= 4 && normalizedKey.includes(normalizedTerm)))
+    );
+  });
+}
+
+function textMatchesBrandHint(term = "", hint = {}) {
+  const wordText = normalizeTextForMoney(term);
+  if (!wordText) return false;
+
+  const tokens = new Set(wordText.split(/\s+/).filter(Boolean));
+  const compactText = normalizeLooseText(term);
+
+  return hintKeys(hint).some((key) => {
+    const normalizedKey = normalizeHintKey(key);
+    const keyTokens = normalizedKey.split(/\s+/).filter(Boolean);
+    const compactKey = normalizeLooseText(key);
+    if (!compactKey) return false;
+
+    if (keyTokens.length === 1) {
+      return tokens.has(keyTokens[0]);
+    }
+
+    return compactText.includes(compactKey);
+  });
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripHintTerms(text = "", hints = []) {
+  let stripped = String(text || "");
+
+  for (const hint of hints) {
+    for (const key of hintKeys(hint)) {
+      const normalizedKey = normalizeHintKey(key);
+      const keyTokens = normalizedKey.split(/\s+/).filter(Boolean);
+      if (!keyTokens.length) continue;
+
+      const pattern = new RegExp(
+        `\\b${keyTokens.map((token) => escapeRegExp(token)).join("\\s+")}\\b`,
+        "g",
+      );
+      stripped = stripped.replace(pattern, " ");
+    }
+  }
+
+  return stripped;
+}
+
+function stripKnownCategoryTerms(text = "") {
+  return stripHintTerms(text, CATEGORY_HINTS);
+}
+
+function stripKnownBrandTerms(text = "") {
+  return stripHintTerms(text, BRAND_HINTS);
+}
+
+function findProductLineHint(text = "") {
+  const normalizedText = normalizeTextForMoney(text);
+  if (!normalizedText) return null;
+
+  const paddedText = ` ${normalizedText} `;
+  const matches = [];
+
+  for (const hint of PRODUCT_LINE_HINTS) {
+    for (const key of hintKeys(hint)) {
+      const normalizedKey = normalizeHintKey(key);
+      const keyTokens = normalizedKey.split(/\s+/).filter(Boolean);
+      if (!keyTokens.length) continue;
+
+      const pattern = new RegExp(
+        `\\b${keyTokens.map((token) => escapeRegExp(token)).join("\\s+")}\\b`,
+      );
+      const match = paddedText.match(pattern);
+      if (!match) continue;
+
+      matches.push({
+        value: hint.value,
+        index: match.index || 0,
+        length: normalizedKey.length,
+      });
+    }
+  }
+
+  if (!matches.length) return null;
+  matches.sort((left, right) => {
+    if (left.index !== right.index) return left.index - right.index;
+    return right.length - left.length;
+  });
+
+  return matches[0].value;
+}
+
+function extractProductSearchTerm(userPrompt = "") {
+  const text = stripKnownBrandTerms(
+    stripKnownCategoryTerms(stripMoneyExpressions(normalizeTextForMoney(userPrompt))),
+  );
+  return findProductLineHint(text);
+}
+
+function getProductLineContext(productTerm = "") {
+  const normalizedTerm = normalizeLooseText(productTerm);
+  if (!normalizedTerm) {
+    return { categoryHint: null, brandHints: [] };
+  }
+
+  const matchedHint = PRODUCT_LINE_HINTS.find((hint) => {
+    if (normalizeLooseText(hint.value) === normalizedTerm) return true;
+    return hintKeys(hint).some((key) => normalizeLooseText(key) === normalizedTerm);
+  });
+
+  return {
+    categoryHint: matchedHint?.categoryHint || null,
+    brandHints: uniqueTerms(matchedHint?.brandHints || []),
+  };
+}
+
+function normalizeBudgetConstraint(budgetConstraint) {
+  if (!budgetConstraint || typeof budgetConstraint !== "object") {
+    return null;
+  }
+
+  const normalizePrice = (value) => {
+    if (value === null || value === undefined) return null;
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : null;
+  };
+  const normalized = {
+    minPrice: normalizePrice(budgetConstraint.minPrice),
+    maxPrice: normalizePrice(budgetConstraint.maxPrice),
+  };
+
+  return normalized.minPrice !== null || normalized.maxPrice !== null
+    ? normalized
+    : null;
+}
+
+function normalizeSearchContext(context = {}) {
+  const productTerm = String(context.productTerm || "").trim() || null;
+  const productLineContext = getProductLineContext(productTerm);
+  const categoryHint = context.categoryHint || productLineContext.categoryHint || null;
+  const brandHints = uniqueTerms([
+    ...(Array.isArray(context.brandHints) ? context.brandHints : []),
+    ...productLineContext.brandHints,
+  ]);
+
+  return {
+    categoryHint,
+    brandHints,
+    budgetConstraint: normalizeBudgetConstraint(context.budgetConstraint),
+    productTerm,
+  };
+}
+
+function hasSearchSubject(context = {}) {
+  return Boolean(
+    context?.categoryHint ||
+    context?.productTerm ||
+    (Array.isArray(context?.brandHints) && context.brandHints.length),
+  );
+}
+
+function hasSearchContextValue(context = {}) {
+  const normalized = normalizeSearchContext(context);
+  return Boolean(
+    hasSearchSubject(normalized) ||
+    normalized.budgetConstraint,
+  );
+}
+
+function extractExplicitSearchContext(text = "", referenceContext = {}) {
+  return {
+    categoryHint: extractCategoryHint([text]),
+    brandHints: extractBrandHints([text]),
+    budgetConstraint:
+      extractBudgetConstraint(text) ||
+      extractUnitlessBudgetConstraint(text, referenceContext),
+    productTerm: extractProductSearchTerm(text),
+  };
+}
+
+function isContextualFollowUpPrompt(userPrompt = "") {
+  const text = normalizeTextForMoney(userPrompt);
+  if (!text) return false;
+
+  return (
+    /\b(vay|the|con|tiep|tieptuc|nhung|neu vay|vay thi|sau do)\b/.test(text) ||
+    /\b(duoi|tren|hon|re hon|dat hon|tot hon|on khong|duoc khong|cai nao|chiec nao|mau nao|con nao|loai nao|tam gia|khoang gia|gia nay|gia do|nua|khac)\b/.test(text)
+  );
+}
+
+function mergeSearchContexts(currentContext = {}, previousContext = {}, userPrompt = "") {
+  const current = normalizeSearchContext(currentContext);
+  const previous = normalizeSearchContext(previousContext);
+
+  if (
+    !isContextualFollowUpPrompt(userPrompt) ||
+    !hasSearchContextValue(previous)
+  ) {
+    return current;
+  }
+
+  const hasExplicitCategory = Boolean(currentContext.categoryHint);
+  const hasExplicitBrand =
+    Array.isArray(currentContext.brandHints) && currentContext.brandHints.length > 0;
+  const hasExplicitProduct = Boolean(currentContext.productTerm);
+  const hasExplicitSubject =
+    hasExplicitCategory || hasExplicitBrand || hasExplicitProduct;
+
+  const productTerm =
+    current.productTerm ||
+    (!hasExplicitSubject ? previous.productTerm : null);
+
+  const categoryHint =
+    current.categoryHint ||
+    (!hasExplicitCategory && !hasExplicitProduct
+      ? previous.categoryHint
+      : null);
+
+  let brandHints = current.brandHints;
+  if (!hasExplicitBrand && !hasExplicitCategory && !hasExplicitProduct) {
+    brandHints = previous.brandHints;
+  }
+
+  return normalizeSearchContext({
+    categoryHint,
+    brandHints,
+    budgetConstraint: current.budgetConstraint || previous.budgetConstraint,
+    productTerm,
+  });
+}
+
+function buildConversationSearchContext(history = []) {
+  const userMessages = (Array.isArray(history) ? history : [])
+    .filter((message) => message?.role === "user")
+    .map((message) => String(message?.content || "").trim())
+    .filter(Boolean)
+    .slice(-8);
+
+  let context = {};
+  for (const content of userMessages) {
+    const currentContext = extractExplicitSearchContext(content, context);
+    if (!hasSearchContextValue(currentContext)) continue;
+
+    context =
+      hasSearchContextValue(context) && isContextualFollowUpPrompt(content)
+        ? mergeSearchContexts(currentContext, context, content)
+        : normalizeSearchContext(currentContext);
+  }
+
+  return normalizeSearchContext(context);
+}
+
+function buildRequestSearchContext(userPrompt = "", conversationContext = {}) {
+  const currentContext = extractExplicitSearchContext(
+    userPrompt,
+    conversationContext,
+  );
+  const mergedContext = mergeSearchContexts(
+    currentContext,
+    conversationContext,
+    userPrompt,
+  );
+
+  return {
+    ...mergedContext,
+    usedConversationContext:
+      isContextualFollowUpPrompt(userPrompt) &&
+      hasSearchContextValue(conversationContext) &&
+      hasSearchContextValue(mergedContext),
+  };
+}
+
+function looksLikeProductQuestionPhrase(value = "") {
+  const normalized = normalizeLooseText(value);
+  if (!normalized) return false;
+  return (
+    PRODUCT_LOOKUP_PATTERN.test(normalized) ||
+    PRODUCT_RECOMMENDATION_SEARCH_PATTERN.test(normalized) ||
+    Boolean(extractBudgetConstraint(value))
+  );
 }
 
 function getModelName(config) {
@@ -263,6 +894,8 @@ function normalizeLooseText(input = "") {
   return String(input)
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 }
@@ -783,6 +1416,80 @@ function buildComplementaryShortcutResult(userPrompt) {
     entities: [],
     skipLlm: true,
   };
+}
+
+function shouldPreferAiPlannerForProductPrompt(userPrompt = "") {
+  const normalized = normalizeLooseText(userPrompt);
+  if (!normalized) return false;
+
+  return (
+    PRODUCT_ANALYSIS_PATTERN.test(normalized) ||
+    extractComparisonTerms(userPrompt).length >= 2
+  );
+}
+
+function buildRecommendationSearchShortcutResult(userPrompt, searchContext = {}) {
+  const normalized = normalizeLooseText(userPrompt);
+  if (!normalized) return null;
+
+  if (shouldPreferAiPlannerForProductPrompt(userPrompt)) {
+    return null;
+  }
+
+  const normalizedSearchContext = normalizeSearchContext(searchContext);
+  const categoryHint = normalizedSearchContext.categoryHint;
+  const brandHints = normalizedSearchContext.brandHints;
+  const budgetConstraint = normalizedSearchContext.budgetConstraint;
+  const productTerm = normalizedSearchContext.productTerm;
+  const hasContextualSubject =
+    Boolean(searchContext?.usedConversationContext) &&
+    isContextualFollowUpPrompt(userPrompt) &&
+    hasSearchSubject(normalizedSearchContext);
+  const isSearchPrompt =
+    PRODUCT_RECOMMENDATION_SEARCH_PATTERN.test(normalized) ||
+    PRODUCT_LOOKUP_PATTERN.test(normalized) ||
+    hasContextualSubject ||
+    Boolean(budgetConstraint && hasSearchSubject(normalizedSearchContext));
+
+  if (
+    !isSearchPrompt ||
+    (!hasSearchSubject(normalizedSearchContext) && !budgetConstraint)
+  ) {
+    return null;
+  }
+
+  return {
+    intent: "product_search",
+    entities: uniqueTerms([categoryHint, ...brandHints, productTerm]),
+    plan: buildProductSearchPlan({
+      categoryHint,
+      brandHints,
+      budgetConstraint,
+      productTerm,
+    }),
+    skipLlm: true,
+  };
+}
+
+function buildPlannerFallbackResult(planResult, userPrompt, searchContext = {}) {
+  if (planResult?.intent && planResult.intent !== "non_db") {
+    return planResult;
+  }
+
+  const comparisonTerms = extractComparisonTerms(userPrompt);
+  if (comparisonTerms.length >= 2) {
+    return {
+      intent: "compare_products",
+      entities: comparisonTerms.slice(0, 2),
+      skipLlm: true,
+    };
+  }
+
+  return (
+    buildComplementaryShortcutResult(userPrompt) ||
+    buildRecommendationSearchShortcutResult(userPrompt, searchContext) ||
+    planResult
+  );
 }
 
 function logChatbotQuery({ prompt, modelName, provider, historyCount }) {
@@ -1456,12 +2163,8 @@ function ensureJoin(plan, resource) {
 
 function extractCategoryHint(entities = []) {
   for (const term of uniqueTerms(entities)) {
-    const normalizedTerm = normalizeLooseText(term);
-    if (!normalizedTerm) continue;
-    const matchedHint = CATEGORY_HINTS.find(
-      (hint) =>
-        normalizedTerm.includes(hint.match) ||
-        hint.match.includes(normalizedTerm),
+    const matchedHint = CATEGORY_HINTS.find((hint) =>
+      textMatchesCategoryHint(term, hint),
     );
     if (matchedHint) {
       return matchedHint.value;
@@ -1469,6 +2172,74 @@ function extractCategoryHint(entities = []) {
   }
 
   return null;
+}
+
+function extractBrandHints(entities = []) {
+  const seen = new Set();
+  const brands = [];
+
+  for (const term of uniqueTerms(entities)) {
+    for (const hint of BRAND_HINTS) {
+      if (!textMatchesBrandHint(term, hint)) continue;
+      const key = normalizeLooseText(hint.value);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      brands.push(hint.value);
+    }
+  }
+
+  return brands;
+}
+
+function buildProductSearchPlan({
+  categoryHint,
+  brandHints = [],
+  budgetConstraint,
+  productTerm,
+} = {}) {
+  const where = [{ field: "status", op: "eq", value: "ACTIVE" }];
+
+  if (categoryHint) {
+    where.push({ field: "category_name", op: "contains", value: categoryHint });
+  }
+  if (brandHints.length === 1) {
+    where.push({ field: "brand_name", op: "contains", value: brandHints[0] });
+  } else if (brandHints.length > 1) {
+    where.push({ field: "brand_name", op: "in", value: brandHints });
+  }
+  if (productTerm) {
+    where.push({ field: "name", op: "contains", value: productTerm });
+  }
+
+  if (budgetConstraint?.minPrice !== null && budgetConstraint?.minPrice !== undefined) {
+    where.push({ field: "min_price", op: "gte", value: budgetConstraint.minPrice });
+  }
+  if (budgetConstraint?.maxPrice !== null && budgetConstraint?.maxPrice !== undefined) {
+    where.push({ field: "min_price", op: "lte", value: budgetConstraint.maxPrice });
+  }
+
+  return {
+    resource: "Product",
+    joins: [],
+    select: [
+      "id",
+      "name",
+      "min_price",
+      "total_stock",
+      "brand_name",
+      "category_name",
+      "avg_rating",
+      "review_count",
+    ],
+    where,
+    sort: [
+      { field: "is_featured", dir: "desc" },
+      { field: "avg_rating", dir: "desc" },
+      { field: "review_count", dir: "desc" },
+      { field: "min_price", dir: "asc" },
+    ],
+    limit: 5,
+  };
 }
 
 function dedupeSelect(fields = []) {
@@ -1516,6 +2287,44 @@ function pickAllowedWhereClauses(plan, allowedFields = []) {
   return (Array.isArray(plan?.where) ? plan.where : []).filter((clause) =>
     allowedFields.includes(clause?.field),
   );
+}
+
+function normalizeProductNameWhereClauses(plan, productTerm) {
+  if (!Array.isArray(plan?.where)) {
+    return plan;
+  }
+
+  return {
+    ...plan,
+    where: plan.where.flatMap((clause) => {
+      if (clause?.field !== "name" || typeof clause?.value !== "string") {
+        return [clause];
+      }
+
+      const clauseProductTerm = extractProductSearchTerm(clause.value);
+      if (!clauseProductTerm) {
+        return [];
+      }
+
+      const effectiveTerm = productTerm || clauseProductTerm;
+      const normalizedEffectiveTerm = normalizeLooseText(effectiveTerm);
+      const normalizedValue = normalizeLooseText(clause.value);
+      if (
+        normalizedEffectiveTerm &&
+        normalizedValue.includes(normalizedEffectiveTerm) &&
+        normalizedValue !== normalizedEffectiveTerm &&
+        looksLikeProductQuestionPhrase(clause.value)
+      ) {
+        return [{ ...clause, op: "contains", value: effectiveTerm }];
+      }
+
+      if (normalizeLooseText(clauseProductTerm) !== normalizedValue) {
+        return [{ ...clause, op: "contains", value: clauseProductTerm }];
+      }
+
+      return [clause];
+    }),
+  };
 }
 
 function ensureSort(plan, fallbackSort = []) {
@@ -1591,6 +2400,101 @@ function applyVariantSearchGuard(plan, entities = []) {
   };
 }
 
+function applyProductSearchGuard(
+  plan,
+  entities = [],
+  userPrompt = "",
+  searchContext = {},
+) {
+  const fallbackContext = normalizeSearchContext({
+    ...extractExplicitSearchContext(userPrompt),
+    categoryHint: extractCategoryHint([...uniqueTerms(entities), userPrompt]),
+    brandHints: extractBrandHints([...uniqueTerms(entities), userPrompt]),
+  });
+  const normalizedSearchContext = hasSearchContextValue(searchContext)
+    ? normalizeSearchContext(searchContext)
+    : fallbackContext;
+  const categoryHint = normalizedSearchContext.categoryHint;
+  const brandHints = normalizedSearchContext.brandHints;
+  const budgetConstraint = normalizedSearchContext.budgetConstraint;
+  const productTerm = normalizedSearchContext.productTerm;
+  let guardedPlan = ensureSelectFields(plan, [
+    "id",
+    "name",
+    "min_price",
+    "total_stock",
+    "brand_name",
+    "category_name",
+    "avg_rating",
+    "review_count",
+  ]);
+  guardedPlan = normalizeProductNameWhereClauses(guardedPlan, productTerm);
+
+  const guardClauses = [{ field: "status", op: "eq", value: "ACTIVE" }];
+  if (categoryHint) {
+    guardClauses.push({
+      field: "category_name",
+      op: "contains",
+      value: categoryHint,
+    });
+  }
+  if (brandHints.length === 1 && !hasWhereField(guardedPlan, ["brand_name", "Brand.name"])) {
+    guardClauses.push({
+      field: "brand_name",
+      op: "contains",
+      value: brandHints[0],
+    });
+  } else if (
+    brandHints.length > 1 &&
+    !hasWhereField(guardedPlan, ["brand_name", "Brand.name"])
+  ) {
+    guardClauses.push({
+      field: "brand_name",
+      op: "in",
+      value: brandHints,
+    });
+  }
+  if (productTerm && !hasWhereField(guardedPlan, ["name"])) {
+    guardClauses.push({
+      field: "name",
+      op: "contains",
+      value: productTerm,
+    });
+  }
+
+  const hasMinPriceFilter = hasWhereField(guardedPlan, ["min_price"]);
+  if (
+    budgetConstraint?.minPrice !== null &&
+    budgetConstraint?.minPrice !== undefined &&
+    !hasMinPriceFilter
+  ) {
+    guardClauses.push({
+      field: "min_price",
+      op: "gte",
+      value: budgetConstraint.minPrice,
+    });
+  }
+  if (
+    budgetConstraint?.maxPrice !== null &&
+    budgetConstraint?.maxPrice !== undefined &&
+    !hasMinPriceFilter
+  ) {
+    guardClauses.push({
+      field: "min_price",
+      op: "lte",
+      value: budgetConstraint.maxPrice,
+    });
+  }
+
+  guardedPlan = ensureWhereClauses(guardedPlan, guardClauses);
+  return ensureSort(guardedPlan, [
+    { field: "is_featured", dir: "desc" },
+    { field: "avg_rating", dir: "desc" },
+    { field: "review_count", dir: "desc" },
+    { field: "min_price", dir: "asc" },
+  ]);
+}
+
 function applyFlashSaleGuard(plan) {
   const nowIso = new Date().toISOString();
   return ensureSort(
@@ -1640,7 +2544,19 @@ function applyCouponGuard(plan) {
   );
 }
 
-function applyIntentGuards(intent, plan, entities, userPrompt, authPrincipal, runtime) {
+function applyIntentGuards(
+  intent,
+  plan,
+  entities,
+  userPrompt,
+  authPrincipal,
+  runtime,
+  searchContext = {},
+) {
+  if (intent === "product_search") {
+    return applyProductSearchGuard(plan, entities, userPrompt, searchContext);
+  }
+
   if (intent === "variant_search") {
     return applyVariantSearchGuard(plan, entities);
   }
@@ -1678,12 +2594,96 @@ function applyIntentGuards(intent, plan, entities, userPrompt, authPrincipal, ru
   return plan;
 }
 
-function postProcessRows(resource, rows, maxProducts) {
+function rowMatchesCategoryHint(row, categoryHint) {
+  const normalizedHint = normalizeLooseText(categoryHint);
+  if (!normalizedHint) return true;
+
+  const categoryName = normalizeLooseText(
+    pickFirst(row, ["category_name", "Category_name", "Product_category_name"]),
+  );
+  if (categoryName && categoryName.includes(normalizedHint)) {
+    return true;
+  }
+
+  return false;
+}
+
+function rowMatchesProductTerm(row, productTerm) {
+  const normalizedTerm = normalizeLooseText(productTerm);
+  if (!normalizedTerm) return true;
+
+  const productName = normalizeLooseText(
+    pickFirst(row, ["name", "product_name", "Product_name", "title"]),
+  );
+  const brandName = normalizeLooseText(
+    pickFirst(row, ["brand_name", "Brand_name"]),
+  );
+
+  return (
+    (productName && productName.includes(normalizedTerm)) ||
+    (brandName && brandName.includes(normalizedTerm))
+  );
+}
+
+function rowMatchesBrandHints(row, brandHints = []) {
+  if (!brandHints.length) return true;
+
+  const brandName = normalizeLooseText(
+    pickFirst(row, ["brand_name", "Brand_name", "Product_brand_name"]),
+  );
+  if (!brandName) return false;
+
+  return brandHints.some((brandHint) => {
+    const normalizedHint = normalizeLooseText(brandHint);
+    return normalizedHint && brandName.includes(normalizedHint);
+  });
+}
+
+function postProcessRows(resource, rows, maxProducts, context = {}) {
   if (resource === "Coupon") {
     return rows.filter((row) => isCouponCurrentlyAvailable(row)).slice(0, maxProducts);
   }
 
-  return rows;
+  if (resource === "Product") {
+    const fallbackContext = normalizeSearchContext({
+      ...extractExplicitSearchContext(context.userPrompt),
+      categoryHint: extractCategoryHint([
+        ...(context.entities || []),
+        context.userPrompt,
+      ]),
+      brandHints: extractBrandHints([
+        ...(context.entities || []),
+        context.userPrompt,
+      ]),
+    });
+    const normalizedSearchContext = hasSearchContextValue(context.searchContext)
+      ? normalizeSearchContext(context.searchContext)
+      : fallbackContext;
+    const categoryHint = normalizedSearchContext.categoryHint;
+    const brandHints = normalizedSearchContext.brandHints;
+    const productTerm = normalizedSearchContext.productTerm;
+    let filteredRows = rows;
+
+    if (categoryHint) {
+      filteredRows = filteredRows.filter((row) =>
+        rowMatchesCategoryHint(row, categoryHint),
+      );
+    }
+    if (brandHints.length) {
+      filteredRows = filteredRows.filter((row) =>
+        rowMatchesBrandHints(row, brandHints),
+      );
+    }
+    if (productTerm) {
+      filteredRows = filteredRows.filter((row) =>
+        rowMatchesProductTerm(row, productTerm),
+      );
+    }
+
+    return filteredRows.slice(0, maxProducts);
+  }
+
+  return rows.slice(0, maxProducts);
 }
 
 function getExecutionLimitCap(intent, runtime) {
@@ -2036,7 +3036,11 @@ async function maybeSynthesizeAnswer({
 
   try {
     const synthesized = await callAI(
-      MESSAGES.SYNTHESIS_SYSTEM(getShopName(appConfig), intent),
+      MESSAGES.SYNTHESIS_SYSTEM(
+        getShopName(appConfig),
+        intent,
+        appConfig.ai?.systemRules,
+      ),
       [],
       buildSynthesisInput(question, draftAnswer, safeContext),
       false,
@@ -2102,11 +3106,20 @@ export const chatbot = async (req, res) => {
 
     const plannerHistory = trimChatHistory(rawHistory, HISTORY_BUDGETS.planner);
     const replyHistory = trimChatHistory(rawHistory, HISTORY_BUDGETS.reply);
-    const shortcut =
-      buildShortcutResult(userPrompt, getShopName(appConfig)) ||
-      buildComplementaryShortcutResult(userPrompt);
-    const planResult =
-      shortcut || (await generateIntentPlan(userPrompt, plannerHistory, runtime));
+    const conversationSearchContext = buildConversationSearchContext(rawHistory);
+    const requestSearchContext = buildRequestSearchContext(
+      userPrompt,
+      conversationSearchContext,
+    );
+    const directShortcut = buildShortcutResult(userPrompt, getShopName(appConfig));
+    const aiPlanResult =
+      directShortcut ||
+      (await generateIntentPlan(userPrompt, plannerHistory, runtime));
+    const planResult = buildPlannerFallbackResult(
+      aiPlanResult,
+      userPrompt,
+      requestSearchContext,
+    );
     const { intent, plan, message, skipLlm } = planResult;
     const responseMode = getResponseMode(intent);
     const authPrincipal = req.userId || null;
@@ -2294,6 +3307,7 @@ export const chatbot = async (req, res) => {
       userPrompt,
       authPrincipal,
       runtime,
+      requestSearchContext,
     );
     console.log(
       "[PLAN]",
@@ -2314,6 +3328,12 @@ export const chatbot = async (req, res) => {
       validPlan.resource,
       result.rows,
       runtime.maxProducts,
+      {
+        intent,
+        userPrompt,
+        entities: planResult.entities || [],
+        searchContext: requestSearchContext,
+      },
     );
 
     const draftAnswer = buildDbAnswer(
